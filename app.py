@@ -154,7 +154,7 @@ section[data-testid="stSidebar"] [data-baseweb="select"] div {{
 
 @st.cache_data
 def load_data():
-    xl = pd.ExcelFile('Dashboard_Streamlit.xlsx')
+    xl = pd.ExcelFile('ARIMA_PLN_PowerBI (3).xlsx')
     return (pd.read_excel(xl, sheet_name='Historis'),
             pd.read_excel(xl, sheet_name='Metrik'),
             pd.read_excel(xl, sheet_name='Peramalan'),
