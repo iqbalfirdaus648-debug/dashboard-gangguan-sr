@@ -1,3 +1,4 @@
+%%writefile app.py
 
 import streamlit as st
 import plotly.graph_objects as go
@@ -148,13 +149,19 @@ section[data-testid="stSidebar"] [data-baseweb="select"] div {{
 .main [data-testid="stDownloadButton"] button:hover {{
     background:#0D47A1 !important;
 }}
+.main [data-testid="stFileUploader"] {{
+    background:{PUTIH};
+    border:1.5px dashed {BIRU};
+    border-radius:12px;
+    padding:8px;
+}}
 </style>
 """, unsafe_allow_html=True)
 
 
 @st.cache_data
 def load_data():
-    xl = pd.ExcelFile('ARIMA_PLN_PowerBI (3).xlsx')
+    xl = pd.ExcelFile('ARIMA_PLN_PowerBI.xlsx')
     return (pd.read_excel(xl, sheet_name='Historis'),
             pd.read_excel(xl, sheet_name='Metrik'),
             pd.read_excel(xl, sheet_name='Peramalan'),
@@ -167,6 +174,10 @@ if 'halaman' not in st.session_state:
     st.session_state.halaman = 'Ringkasan'
 if 'model_terpilih' not in st.session_state:
     st.session_state.model_terpilih = 'SARIMAX Optimal'
+if 'hasil_ramalan_baru' not in st.session_state:
+    st.session_state.hasil_ramalan_baru = None
+if 'ts_baru_terakhir' not in st.session_state:
+    st.session_state.ts_baru_terakhir = None
 
 
 # ═══════════════ SIDEBAR ═══════════════
@@ -204,8 +215,8 @@ with st.sidebar:
         'border-top:1px solid #17518C;padding-top:14px;">NAVIGASI</div>',
         unsafe_allow_html=True)
 
-    # --- Menu Navigasi (menu baru: Perbandingan Model) ---
-    for nama in ["Ringkasan", "Tren Harian", "Peramalan",
+    # --- Menu Navigasi (menu baru: Perbarui & Ramalkan) ---
+    for nama in ["Ringkasan", "Tren Harian", "Peramalan", "Perbarui & Ramalkan",
                  "Analisis Penyebab", "Perbandingan Model", "Akurasi Model"]:
         aktif = st.session_state.halaman == nama
         if st.button(nama, key=f"menu_{nama}", use_container_width=True,
@@ -228,7 +239,7 @@ with st.sidebar:
         pilih_bulan = st.selectbox("p", opsi, label_visibility="collapsed")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- Status Model (UPDATE: SARIMAX terbaru) ---
+    # --- Status Model ---
     st.markdown(
         '<div style="margin:20px 8px 0;padding-top:16px;'
         'border-top:1px solid #17518C;">'
@@ -507,7 +518,7 @@ def simulasi_skenario():
                   f"{'+' if selisih >= 0 else ''}{selisih:.1f} vs asli")
 
 
-# ═══════════════ FITUR BARU: TOGGLE PERBANDINGAN MODEL ═══════════════
+# ═══════════════ FITUR: TOGGLE PERBANDINGAN MODEL ═══════════════
 
 def g_progres_optimasi():
     """Bar chart penurunan MASE dari ARIMA ke SARIMAX"""
@@ -626,6 +637,282 @@ def kartu_model_toggle():
         st.metric("MASE", f"{m['MASE']:.3f}".replace(".", ","))
 
 
+# ═══════════════ FITUR BARU: PERBARUI & RAMALKAN (ROLLING FORECAST) ═══════════════
+
+def proses_data_upload(df_baru, kol_tgl_baru, kol_val_baru, jumlah_hari=30, order_model=(0, 1, 3)):
+    """Membersihkan data yang diunggah, melatih ulang model SARIMAX, dan
+    menghasilkan peramalan sejumlah 'jumlah_hari' dari titik data terbaru
+    yang diunggah. Mengembalikan dict berisi ts_baru, hasil peramalan,
+    dan info model."""
+    import holidays as hol
+    from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+    kerja = df_baru[[kol_tgl_baru, kol_val_baru]].copy()
+    kerja[kol_tgl_baru] = pd.to_datetime(kerja[kol_tgl_baru], dayfirst=True, errors='coerce')
+    kerja = kerja.dropna(subset=[kol_tgl_baru])
+
+    # Agregasi ke harian apabila data masih berbentuk satu baris per laporan
+    if kerja[kol_tgl_baru].duplicated().any():
+        agregasi = kerja.groupby(kerja[kol_tgl_baru].dt.normalize()).size()
+        ts_baru = agregasi.rename('jumlah')
+    else:
+        ts_baru = kerja.set_index(kol_tgl_baru)[kol_val_baru]
+
+    ts_baru = ts_baru.asfreq('D')
+    ts_baru = ts_baru.interpolate(method='linear').round()
+
+    def buat_exog(index_tanggal):
+        exog = pd.DataFrame(index=index_tanggal)
+        exog['is_weekend'] = (index_tanggal.dayofweek >= 5).astype(int)
+        exog['is_month_start'] = (index_tanggal.day <= 3).astype(int)
+        exog['is_month_end'] = (index_tanggal.day >= 28).astype(int)
+        exog['day_of_week'] = index_tanggal.dayofweek
+        tahun_terlibat = sorted(set(index_tanggal.year))
+        id_hol = hol.Indonesia(years=tahun_terlibat)
+        exog['is_holiday'] = [1 if d in id_hol else 0 for d in index_tanggal.date]
+        return exog
+
+    exog_baru = buat_exog(ts_baru.index)
+
+    model_baru = SARIMAX(
+        ts_baru, exog=exog_baru, order=order_model,
+        enforce_stationarity=False, enforce_invertibility=False
+    ).fit(disp=False, maxiter=1000, method='powell')
+
+    idx_depan = pd.date_range(ts_baru.index[-1] + pd.Timedelta(days=1), periods=jumlah_hari, freq='D')
+    exog_depan = buat_exog(idx_depan)
+
+    fc_baru = model_baru.get_forecast(steps=jumlah_hari, exog=exog_depan)
+    ci = fc_baru.conf_int()
+
+    hasil_baru = pd.DataFrame({
+        'Tanggal': idx_depan,
+        'Prediksi': fc_baru.predicted_mean.clip(lower=0).round(2).values,
+        'CI_Bawah': ci.iloc[:, 0].clip(lower=0).round(2).values,
+        'CI_Atas': ci.iloc[:, 1].clip(lower=0).round(2).values,
+    })
+
+    return {
+        'ts_baru': ts_baru,
+        'hasil': hasil_baru,
+        'order': order_model,
+        'aic': model_baru.aic,
+    }
+
+
+def halaman_perbarui_ramalkan():
+    st.markdown(
+        f'<div style="background:{PUTIH};border:1px solid {GARIS};'
+        f'border-left:4px solid {BIRU};border-radius:0 10px 10px 0;'
+        f'padding:14px 18px;margin-bottom:18px;">'
+        f'<div style="color:{NAVY};font-size:11px;font-weight:700;'
+        f'margin-bottom:6px;">Peramalan Bergulir (Rolling Forecast)</div>'
+        f'<div style="color:{ABU};font-size:10.5px;line-height:1.8;">'
+        f'Fitur ini memungkinkan sistem melatih ulang model SARIMAX secara '
+        f'otomatis menggunakan data gangguan terbaru yang diunggah, kemudian '
+        f'menghasilkan peramalan dari titik data paling akhir. '
+        f'Dengan mekanisme ini, dashboard dapat digunakan untuk meramalkan '
+        f'periode berikutnya kapan pun data baru tersedia, tanpa perlu '
+        f'mengubah kode program.</div></div>', unsafe_allow_html=True)
+
+    # ═══ Panduan rentang yang disarankan (gauge visual) ═══
+    st.markdown(
+        f'''<div style="background:{PUTIH};border:1px solid {GARIS};
+             border-radius:12px;padding:16px 20px;margin-bottom:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <span style="color:{NAVY};font-size:11.5px;font-weight:700;">
+                    📏 Panduan Rentang Peramalan
+                </span>
+                <span style="color:{ABU};font-size:9.5px;">berdasarkan panjang data latih 209 hari</span>
+            </div>
+            <div style="display:flex;height:10px;border-radius:6px;overflow:hidden;margin-bottom:8px;">
+                <div style="width:35%;background:{HIJAU};"></div>
+                <div style="width:65%;background:{KUNING};"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:{ABU};margin-bottom:14px;">
+                <span>7 hari</span><span style="margin-left:-10px;">42 hari</span><span>120 hari</span>
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:220px;background:#F0FDF4;border-radius:8px;padding:10px 14px;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                        <div style="width:8px;height:8px;border-radius:50%;background:{HIJAU};"></div>
+                        <span style="color:{HIJAU};font-size:10.5px;font-weight:700;">7–42 HARI · DISARANKAN</span>
+                    </div>
+                    <div style="color:#166534;font-size:10px;line-height:1.6;">
+                        Interval kepercayaan masih wajar. Hasil dapat dijadikan
+                        acuan perencanaan operasional.
+                    </div>
+                </div>
+                <div style="flex:1;min-width:220px;background:#FFFBEB;border-radius:8px;padding:10px 14px;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                        <div style="width:8px;height:8px;border-radius:50%;background:{KUNING};"></div>
+                        <span style="color:#92400E;font-size:10.5px;font-weight:700;">43–120 HARI · HANYA ILUSTRASI</span>
+                    </div>
+                    <div style="color:#92400E;font-size:10px;line-height:1.6;">
+                        Interval kepercayaan melebar signifikan. Tersedia untuk
+                        eksplorasi, bukan untuk acuan keputusan.
+                    </div>
+                </div>
+            </div>
+        </div>''', unsafe_allow_html=True)
+
+    file_baru = st.file_uploader(
+        "Unggah data gangguan (format Excel atau CSV)",
+        type=['xlsx', 'csv'],
+        help="Data dapat berupa satu baris per laporan (akan diagregasi otomatis) "
+             "atau sudah berupa rekap harian."
+    )
+
+    if file_baru is not None:
+        try:
+            if file_baru.name.lower().endswith('.csv'):
+                df_baru = pd.read_csv(file_baru)
+            else:
+                df_baru = pd.read_excel(file_baru)
+
+            st.success(f"✅ Berkas berhasil dimuat — {len(df_baru):,} baris, {df_baru.shape[1]} kolom")
+
+            with st.expander("Pratinjau data yang diunggah", expanded=False):
+                st.dataframe(df_baru.head(10), use_container_width=True)
+
+            c1, c2 = st.columns(2)
+            with c1:
+                kol_tgl_baru = st.selectbox("Kolom tanggal", df_baru.columns, key="pilih_kol_tgl")
+            with c2:
+                kol_val_baru = st.selectbox("Kolom jumlah gangguan (isi angka bebas jika data per-laporan)",
+                                             df_baru.columns, key="pilih_kol_val")
+
+            st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+            jumlah_hari = st.slider(
+                "Jumlah hari yang diramalkan ke depan",
+                min_value=7, max_value=120, value=30, step=7,
+                help="Lihat panduan rentang di bagian atas halaman. Disarankan "
+                     "≤ 42 hari untuk hasil yang dapat dijadikan acuan."
+            )
+            if jumlah_hari <= 42:
+                st.markdown(
+                    f'<div style="background:#DCFCE7;border-radius:8px;padding:8px 14px;'
+                    f'margin-top:6px;margin-bottom:4px;display:flex;align-items:center;gap:6px;">'
+                    f'<span style="color:#166534;font-size:11px;font-weight:600;">'
+                    f'✅ Dalam rentang disarankan — hasil dapat dijadikan acuan.</span></div>',
+                    unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    f'<div style="background:#FEF3C7;border-radius:8px;padding:8px 14px;'
+                    f'margin-top:6px;margin-bottom:4px;display:flex;align-items:center;gap:6px;">'
+                    f'<span style="color:#92400E;font-size:11px;font-weight:600;">'
+                    f'⚠️ Melebihi rentang disarankan — hasil hanya untuk ilustrasi, '
+                    f'bukan acuan keputusan.</span></div>',
+                    unsafe_allow_html=True)
+
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            jalankan = st.button("🔄 Latih Ulang Model dan Ramalkan",
+                                  type="primary", use_container_width=False)
+
+            if jalankan:
+                with st.spinner(f"Melatih ulang model SARIMAX dan meramalkan {jumlah_hari} hari ke depan..."):
+                    try:
+                        out = proses_data_upload(df_baru, kol_tgl_baru, kol_val_baru,
+                                                  jumlah_hari=jumlah_hari)
+                        st.session_state.hasil_ramalan_baru = out['hasil']
+                        st.session_state.ts_baru_terakhir = out['ts_baru']
+                        st.session_state.info_model_baru = out
+                    except Exception as e:
+                        st.error(f"Gagal memproses data: {e}")
+                        st.session_state.hasil_ramalan_baru = None
+
+        except Exception as e:
+            st.error(f"Terjadi kesalahan membaca berkas: {e}")
+
+    # ═══ Tampilkan hasil apabila sudah ada ═══
+    if st.session_state.hasil_ramalan_baru is not None:
+        hasil_baru = st.session_state.hasil_ramalan_baru
+        ts_baru = st.session_state.ts_baru_terakhir
+        info = st.session_state.info_model_baru
+
+        st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="background:#DCFCE7;border-radius:10px;padding:12px 16px;'
+            f'margin-bottom:16px;">'
+            f'<div style="color:{HIJAU};font-size:12px;font-weight:700;">'
+            f'✅ Model berhasil dilatih ulang dari {len(ts_baru)} hari data '
+            f'({ts_baru.index[0].strftime("%d %b %Y")} — {ts_baru.index[-1].strftime("%d %b %Y")})'
+            f'</div></div>', unsafe_allow_html=True)
+
+        n_hari = len(hasil_baru)
+        lebar_ci = (hasil_baru['CI_Atas'] - hasil_baru['CI_Bawah']).mean()
+
+        k1, k2, k3, k4 = st.columns(4)
+        with k1:
+            st.metric("Order Model", f"SARIMAX{info['order']}", "otomatis")
+        with k2:
+            st.metric("Proyeksi Rata-rata",
+                       f"{hasil_baru['Prediksi'].mean():.2f}".replace(".", ","),
+                       "gangguan / hari")
+        with k3:
+            st.metric("Periode Peramalan",
+                       f"{hasil_baru['Tanggal'].iloc[0].strftime('%d %b')} — {hasil_baru['Tanggal'].iloc[-1].strftime('%d %b %Y')}",
+                       f"{n_hari} hari ke depan")
+        with k4:
+            st.metric("Rata-rata Lebar Interval",
+                       f"± {lebar_ci/2:.1f}".replace(".", ","),
+                       "kian lebar kian jauh horizon")
+
+        st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+        judul(f"Peramalan {n_hari} Hari dari Data Terbaru", "Data aktual dan hasil peramalan bergulir")
+
+        f = go.Figure()
+        f.add_trace(go.Scatter(
+            x=ts_baru.index[-60:], y=ts_baru.values[-60:],
+            name='Data Aktual (Diunggah)', line=dict(color=TOSKA, width=2.2),
+            fill='tozeroy', fillcolor='rgba(0,169,165,.08)'))
+        f.add_trace(go.Scatter(
+            x=hasil_baru['Tanggal'], y=hasil_baru['CI_Atas'],
+            mode='lines', line=dict(color='rgba(0,0,0,0)'),
+            showlegend=False, hoverinfo='skip'))
+        f.add_trace(go.Scatter(
+            x=hasil_baru['Tanggal'], y=hasil_baru['CI_Bawah'],
+            fill='tonexty', mode='lines', fillcolor='rgba(249,168,37,.16)',
+            line=dict(color='rgba(0,0,0,0)'), name='Interval 95%', hoverinfo='skip'))
+        f.add_trace(go.Scatter(
+            x=hasil_baru['Tanggal'], y=hasil_baru['Prediksi'],
+            name='Prediksi Baru', line=dict(color=ORANYE, width=2.5, dash='dash')))
+        f.update_layout(**tata(380))
+        st.plotly_chart(f, use_container_width=True)
+
+        st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+        judul("Tabel Hasil Peramalan Baru", "Rincian prediksi harian")
+        tp = hasil_baru.copy()
+        tp['Tanggal'] = pd.to_datetime(tp['Tanggal']).dt.strftime('%d %b %Y')
+        st.dataframe(
+            tp.style.format({'Prediksi': '{:.2f}', 'CI_Bawah': '{:.2f}', 'CI_Atas': '{:.2f}'}),
+            use_container_width=True, hide_index=True, height=300)
+
+        st.download_button(
+            "Unduh Hasil Peramalan Baru", key="unduh_ramalan_baru",
+            data=hasil_baru.to_csv(index=False).encode('utf-8'),
+            file_name=f"peramalan_bergulir_{datetime.now():%Y%m%d}.csv",
+            mime="text/csv")
+
+        st.markdown(
+            f'<div style="background:{PUTIH};border:1px solid {GARIS};'
+            f'border-left:4px solid {KUNING};border-radius:0 10px 10px 0;'
+            f'padding:14px 18px;margin-top:16px;">'
+            f'<div style="color:{NAVY};font-size:11px;font-weight:700;'
+            f'margin-bottom:6px;">Catatan</div>'
+            f'<div style="color:{ABU};font-size:10.5px;line-height:1.8;">'
+            f'Hasil di atas dihasilkan dari data yang diunggah pengguna dan '
+            f'bersifat demonstrasi mekanisme peramalan bergulir. Apabila '
+            f'data yang diunggah berada di luar cakupan periode penelitian '
+            f'utama (Januari–September 2025), hasil ini tidak menggantikan '
+            f'hasil resmi penelitian, melainkan menunjukkan bahwa sistem '
+            f'dapat memproses dan meramalkan data periode mana pun secara '
+            f'otomatis.</div></div>', unsafe_allow_html=True)
+    else:
+        st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+        st.info("Unggah berkas data gangguan untuk memulai peramalan bergulir.")
+
+
 halaman = st.session_state.halaman
 
 if halaman == 'Ringkasan':
@@ -731,6 +1018,11 @@ elif halaman == 'Peramalan':
         use_container_width=True, hide_index=True, height=320)
 
     simulasi_skenario()
+
+elif halaman == 'Perbarui & Ramalkan':
+    judul("Perbarui Data dan Ramalkan Ulang",
+          "Unggah data gangguan terbaru untuk peramalan bergulir")
+    halaman_perbarui_ramalkan()
 
 elif halaman == 'Analisis Penyebab':
     a, b = st.columns(2)
