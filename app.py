@@ -1,6 +1,6 @@
 # ============================================================
 # DASHBOARD PERAMALAN GANGGUAN KABEL SR - PLN UP3 SERPONG
-# Desain: Modern SaaS (Navbar Lebar, No Sidebar, Glass KPI)
+# Desain: Modern SaaS (Navbar Lebar, Logo Besar, Glass KPI)
 # ============================================================
 import streamlit as st
 import plotly.graph_objects as go
@@ -27,7 +27,7 @@ st.set_page_config(
 # ============================================================
 TEXT_DARK = "#0F172A"
 TEXT_GRAY = "#64748B"
-NAV_ACTIVE = "#E11D48" # Merah elegan untuk tombol aktif
+NAV_ACTIVE = "#E11D48" # Merah elegan
 BIRU = "#6366F1"
 TOSKA = "#8B5CF6"
 HIJAU = "#10B981"
@@ -63,14 +63,14 @@ section[data-testid="stSidebar"] {{ display: none !important; }}
     box-shadow: 0 24px 48px -12px rgba(0,0,0,0.1);
     padding: 2rem 3rem !important;
     margin: 2rem auto !important;
-    max-width: 1400px;
+    max-width: 1500px; /* Diperlebar agar muat banyak menu */
 }}
 
-/* ---------- NAVBAR PILL (Diperlebar) ---------- */
+/* ---------- NAVBAR PILL (Diperlebar & Rapi) ---------- */
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) {{
     background: #FFFFFF;
     border-radius: 999px;
-    padding: 8px 16px;
+    padding: 8px 24px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.04);
     align-items: center;
     margin-bottom: 32px;
@@ -78,19 +78,19 @@ section[data-testid="stSidebar"] {{ display: none !important; }}
 
 /* Tombol Navbar */
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) button {{
-    border-radius: 999px !important; /* Kapsul */
+    border-radius: 999px !important;
     height: 42px !important;
     min-height: 42px !important;
     border: 1px solid rgba(0,0,0,0.06) !important;
-    padding: 0 8px !important;
+    padding: 0 10px !important;
     transition: all 0.2s ease;
     width: 100% !important;
+    white-space: nowrap !important;
 }}
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) button p {{
     font-size: 13px !important;
     font-weight: 600 !important;
     margin: 0 !important;
-    white-space: nowrap !important; /* Mencegah teks terpotong */
 }}
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="secondary"] {{
     background: transparent !important;
@@ -101,7 +101,7 @@ section[data-testid="stSidebar"] {{ display: none !important; }}
     color: {TEXT_DARK} !important;
 }}
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"] {{
-    background: {NAV_ACTIVE} !important; /* Merah elegan */
+    background: {NAV_ACTIVE} !important;
     border-color: {NAV_ACTIVE} !important;
     color: #FFFFFF !important;
 }}
@@ -124,7 +124,7 @@ section[data-testid="stSidebar"] {{ display: none !important; }}
     font-weight: 500 !important;
 }}
 
-/* ---------- KPI CARD MODERN ---------- */
+/* ---------- KPI CARD (Persis Screenshot) ---------- */
 [data-testid="stMetric"] {{
     background: #FFFFFF;
     border: 1px solid rgba(0,0,0,0.04);
@@ -139,15 +139,16 @@ section[data-testid="stSidebar"] {{ display: none !important; }}
     transform: translateY(-5px);
     box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1);
 }}
+/* Ikon di Pojok Kanan Atas */
 [data-testid="stMetric"]::after {{
     content: 'insights';
     font-family: 'Material Symbols Rounded';
     position: absolute;
-    top: 20px; right: 20px;
-    font-size: 24px;
+    top: 24px; right: 24px;
+    font-size: 22px;
     color: {BIRU};
     background: rgba(99, 102, 241, 0.1);
-    padding: 8px;
+    padding: 10px;
     border-radius: 50%;
 }}
 [data-testid="column"]:nth-of-type(2) [data-testid="stMetric"]::after {{ content: 'trending_up'; color: {TOSKA}; background: rgba(139, 92, 246, 0.1); }}
@@ -268,37 +269,37 @@ if 'ts_baru_terakhir' not in st.session_state: st.session_state.ts_baru_terakhir
 if 'info_model_baru' not in st.session_state: st.session_state.info_model_baru = None
 
 # ============================================================
-# 6. NAVBAR HORIZONTAL (Rasio Lebar Diperbesar)
+# 6. NAVBAR HORIZONTAL (Rasio Lebar Menu Diperbesar)
 # ============================================================
 st.markdown('<div class="nav-anchor"></div>', unsafe_allow_html=True)
 
-# Mengubah rasio kolom: Logo (2), Menu (7), Filter (2) agar menu lebih lebar
-nav_logo, nav_menu, nav_filter = st.columns([2, 7, 2], gap="small")
+# Rasio: Logo (1.5), Menu (8.5), Filter (2)
+nav_logo, nav_menu, nav_filter = st.columns([1.5, 8.5, 2], gap="small")
 
 with nav_logo:
     if os.path.exists('logo_haleyora.png'):
         with open('logo_haleyora.png', 'rb') as f:
             b64 = base64.b64encode(f.read()).decode()
         st.markdown(
-            f'<div style="display:flex;align-items:center;height:100%;padding-left:16px;">'
-            f'<img src="data:image/png;base64,{b64}" style="height:36px; object-fit:contain;">'
+            f'<div style="display:flex;align-items:center;height:100%;padding-left:12px;">'
+            f'<img src="data:image/png;base64,{b64}" style="height:52px; object-fit:contain;">' # LOGO DIPERBESAR
             f'</div>', unsafe_allow_html=True)
     else:
         st.markdown(
-            '<div style="display:flex;align-items:center;height:100%;padding-left:16px;">'
-            '<span style="color:#0F172A;font-size:18px;font-weight:800;letter-spacing:-0.5px;">'
+            '<div style="display:flex;align-items:center;height:100%;padding-left:12px;">'
+            '<span style="color:#0F172A;font-size:20px;font-weight:800;letter-spacing:-0.5px;">'
             'haleyora<span style="color:#F59E0B;">power</span></span></div>', 
             unsafe_allow_html=True)
 
 with nav_menu:
-    # 7 kolom untuk 7 menu
     sub_cols = st.columns(7)
     menu_list = ["Ringkasan", "Tren Harian", "Peramalan", "Perbarui & Ramalkan", 
                  "Analisis Penyebab", "Perbandingan Model", "Akurasi Model"]
     for i, nama in enumerate(menu_list):
         aktif = st.session_state.halaman == nama
         with sub_cols[i]:
-            label_tampil = nama.replace("Perbarui & Ramalkan", "Perbarui").replace("Perbandingan Model", "Perbandingan").replace("Analisis Penyebab", "Penyebab")
+            # Label dipersingkat agar muat, tapi state tetap menggunakan nama asli
+            label_tampil = nama.replace("Perbarui & Ramalkan", "Perbarui").replace("Perbandingan Model", "Perbandingan").replace("Analisis Penyebab", "Penyebab").replace("Akurasi Model", "Akurasi")
             if st.button(label_tampil, key=f"nav_{nama}", use_container_width=True,
                          type="primary" if aktif else "secondary"):
                 st.session_state.halaman = nama
