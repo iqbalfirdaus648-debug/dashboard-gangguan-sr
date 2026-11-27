@@ -1,6 +1,6 @@
 # ============================================================
 # DASHBOARD PERAMALAN GANGGUAN KABEL SR - PLN UP3 SERPONG
-# Desain: Modern SaaS (Navbar Pill, No Sidebar, Glass KPI)
+# Desain: Modern SaaS (Navbar Lebar, No Sidebar, Glass KPI)
 # ============================================================
 import streamlit as st
 import plotly.graph_objects as go
@@ -27,7 +27,7 @@ st.set_page_config(
 # ============================================================
 TEXT_DARK = "#0F172A"
 TEXT_GRAY = "#64748B"
-NAV_ACTIVE = "#0F172A"
+NAV_ACTIVE = "#E11D48" # Merah elegan untuk tombol aktif
 BIRU = "#6366F1"
 TOSKA = "#8B5CF6"
 HIJAU = "#10B981"
@@ -66,7 +66,7 @@ section[data-testid="stSidebar"] {{ display: none !important; }}
     max-width: 1400px;
 }}
 
-/* ---------- NAVBAR PILL ---------- */
+/* ---------- NAVBAR PILL (Diperlebar) ---------- */
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) {{
     background: #FFFFFF;
     border-radius: 999px;
@@ -75,17 +75,22 @@ section[data-testid="stSidebar"] {{ display: none !important; }}
     align-items: center;
     margin-bottom: 32px;
 }}
+
+/* Tombol Navbar */
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) button {{
-    border-radius: 999px !important;
-    height: 40px !important;
-    border: none !important;
-    padding: 0 20px !important;
+    border-radius: 999px !important; /* Kapsul */
+    height: 42px !important;
+    min-height: 42px !important;
+    border: 1px solid rgba(0,0,0,0.06) !important;
+    padding: 0 8px !important;
     transition: all 0.2s ease;
+    width: 100% !important;
 }}
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) button p {{
     font-size: 13px !important;
     font-weight: 600 !important;
     margin: 0 !important;
+    white-space: nowrap !important; /* Mencegah teks terpotong */
 }}
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="secondary"] {{
     background: transparent !important;
@@ -96,18 +101,21 @@ section[data-testid="stSidebar"] {{ display: none !important; }}
     color: {TEXT_DARK} !important;
 }}
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"] {{
-    background: {NAV_ACTIVE} !important;
+    background: {NAV_ACTIVE} !important; /* Merah elegan */
+    border-color: {NAV_ACTIVE} !important;
     color: #FFFFFF !important;
 }}
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"] p {{
     color: #FFFFFF !important;
 }}
+
+/* Dropdown Selectbox di Navbar */
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-baseweb="select"] > div {{
     background: #F9FAFB !important;
-    border: 1px solid rgba(0,0,0,0.05) !important;
+    border: 1px solid rgba(0,0,0,0.08) !important;
     border-radius: 999px !important;
-    min-height: 40px !important;
-    height: 40px !important;
+    min-height: 42px !important;
+    height: 42px !important;
     display: flex; align-items: center;
 }}
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-baseweb="select"] * {{
@@ -131,7 +139,6 @@ section[data-testid="stSidebar"] {{ display: none !important; }}
     transform: translateY(-5px);
     box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1);
 }}
-/* Ikon di Pojok Kanan Atas */
 [data-testid="stMetric"]::after {{
     content: 'insights';
     font-family: 'Material Symbols Rounded';
@@ -261,10 +268,12 @@ if 'ts_baru_terakhir' not in st.session_state: st.session_state.ts_baru_terakhir
 if 'info_model_baru' not in st.session_state: st.session_state.info_model_baru = None
 
 # ============================================================
-# 6. NAVBAR HORIZONTAL
+# 6. NAVBAR HORIZONTAL (Rasio Lebar Diperbesar)
 # ============================================================
 st.markdown('<div class="nav-anchor"></div>', unsafe_allow_html=True)
-nav_logo, nav_menu, nav_filter = st.columns([2, 5, 3], gap="small")
+
+# Mengubah rasio kolom: Logo (2), Menu (7), Filter (2) agar menu lebih lebar
+nav_logo, nav_menu, nav_filter = st.columns([2, 7, 2], gap="small")
 
 with nav_logo:
     if os.path.exists('logo_haleyora.png'):
@@ -282,6 +291,7 @@ with nav_logo:
             unsafe_allow_html=True)
 
 with nav_menu:
+    # 7 kolom untuk 7 menu
     sub_cols = st.columns(7)
     menu_list = ["Ringkasan", "Tren Harian", "Peramalan", "Perbarui & Ramalkan", 
                  "Analisis Penyebab", "Perbandingan Model", "Akurasi Model"]
