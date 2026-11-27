@@ -78,7 +78,7 @@ header[data-testid="stHeader"] {{ background:transparent; height:2.5rem; }}
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.9);
     border-radius: 100px;
-    padding: 10px 24px; /* Padding vertikal ditambah agar logo muat */
+    padding: 8px 24px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     align-items: center;
     margin-bottom: 24px;
@@ -104,6 +104,7 @@ header[data-testid="stHeader"] {{ background:transparent; height:2.5rem; }}
     background: rgba(0,0,0,0.04) !important;
     color: {NAVY} !important;
 }}
+/* Tombol aktif dibuat Navy elegan */
 [data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"] {{
     background: {NAVY} !important;
     color: #FFFFFF !important;
@@ -295,17 +296,16 @@ st.markdown('<div class="nav-anchor"></div>', unsafe_allow_html=True)
 nav_logo, nav_menu, nav_filter = st.columns([2, 5, 3], gap="small")
 
 with nav_logo:
-    # LOGO DIPERBESAR MENJADI 42PX
     if os.path.exists('logo_haleyora.png'):
         with open('logo_haleyora.png', 'rb') as f:
             b64 = base64.b64encode(f.read()).decode()
         st.markdown(
-            f'<div style="display:flex;align-items:center;height:100%;padding-left:12px;">'
+            f'<div style="display:flex;align-items:center;height:100%;padding-left:16px;">'
             f'<img src="data:image/png;base64,{b64}" style="height:42px; object-fit:contain;">'
             f'</div>', unsafe_allow_html=True)
     else:
         st.markdown(
-            '<div style="display:flex;align-items:center;height:100%;padding-left:12px;">'
+            '<div style="display:flex;align-items:center;height:100%;padding-left:16px;">'
             '<span style="color:#0F172A;font-size:18px;font-weight:800;letter-spacing:-0.5px;">'
             'haleyora<span style="color:#F59E0B;">power</span></span></div>', 
             unsafe_allow_html=True)
@@ -447,12 +447,13 @@ def g_penyebab(t=320):
         textfont=dict(size=11, color='white'),
         hovertemplate='<b>%{customdata[0]}</b><br>%{value:,}<extra></extra>',
         marker=dict(line=dict(color='#FFFFFF', width=3)))
+    # Perbaikan: Legend dipindah ke bawah agar grafik donat lebih lega
     f.update_layout(
         paper_bgcolor=TRANSPARAN, height=t,
         margin=dict(l=10, r=10, t=10, b=10),
         font=dict(color=ABU, family='Plus Jakarta Sans, sans-serif'),
-        legend=dict(orientation='h', yanchor='top', y=-0.05,
-                    xanchor='left', x=0, font=dict(size=11, color=ABU),
+        legend=dict(orientation='h', yanchor='top', y=-0.1,
+                    xanchor='center', x=0.5, font=dict(size=10, color=ABU),
                     bgcolor=TRANSPARAN),
         hoverlabel=dict(bgcolor=NAVY, font=dict(color='white')))
     return f
