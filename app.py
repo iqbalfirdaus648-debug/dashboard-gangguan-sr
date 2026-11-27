@@ -1,7 +1,6 @@
 # ============================================================
 # DASHBOARD PERAMALAN GANGGUAN KABEL SR - PLN UP3 SERPONG
 # Metode: ARIMA(1,1,1) | Kerangka: CRISP-DM
-# Data: Januari - Desember 2025 (365 hari)
 # ============================================================
 import streamlit as st
 import plotly.graph_objects as go
@@ -20,36 +19,43 @@ st.set_page_config(
     page_title="Dashboard Gangguan Kabel SR - PLN",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"  # Sidebar disembunyikan
 )
 
 # ============================================================
-# 2. PALET WARNA (Tema SalesPulse - Glassmorphism)
+# 2. PALET WARNA
 # ============================================================
-NAVY   = "#1A1A1A"                 # Teks utama (hampir hitam)
-BIRU   = "#7C6BFA"                 # Periwinkle/Ungu aksen utama
-TOSKA  = "#A29BFE"                 # Ungu terang (garis data)
-KUNING = "#F5A524"                 # Oranye terang (sorotan)
-ORANYE = "#F08A1C"                 # Oranye (prediksi)
+NAVY   = "#1A1A1A"
+BIRU   = "#7C6BFA"
+TOSKA  = "#A29BFE"
+KUNING = "#F5A524"
+ORANYE = "#F08A1C"
 MERAH  = "#E5484D"
-HIJAU  = "#2E9E5B"                 # Hijau untuk indikator positif
+HIJAU  = "#2E9E5B"
 ABU    = "#76767C"
 GARIS  = "rgba(0,0,0,.05)"
 
-# Kartu Glassmorphism
 KARTU_BG = "rgba(255, 255, 255, 0.65)"
 KARTU = (f"background: {KARTU_BG}; backdrop-filter: blur(24px); "
          "-webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.8); "
          "box-shadow: 0 4px 20px rgba(0,0,0,.03);")
 
 # ============================================================
-# 3. CSS KUSTOM (Meniru Layout SalesPulse)
+# 3. CSS KUSTOM (Navbar Horizontal)
 # ============================================================
 st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 html, body, [class*="css"] {{ font-family:'Inter', sans-serif; }}
 span[data-testid="stIconMaterial"] {{ font-family:'Material Symbols Rounded' !important; }}
+
+/* Sembunyikan Sidebar & Elemen Bawaan */
+section[data-testid="stSidebar"] {{ display: none !important; }}
+#MainMenu, footer {{ visibility:hidden; }}
+[data-testid="stToolbar"], [data-testid="stDecoration"],
+[data-testid="stStatusWidget"], .stAppDeployButton,
+[class*="viewerBadge"] {{ display:none !important; }}
+header[data-testid="stHeader"] {{ background:transparent; height:2.5rem; }}
 
 /* Background Gradasi Mesh */
 .stApp {{
@@ -61,81 +67,72 @@ span[data-testid="stIconMaterial"] {{ font-family:'Material Symbols Rounded' !im
         radial-gradient(at 0% 100%, rgba(232, 240, 236, 1) 0px, transparent 50%);
 }}
 
-/* Sembunyikan elemen bawaan Streamlit */
-#MainMenu, footer {{ visibility:hidden; }}
-[data-testid="stToolbar"], [data-testid="stDecoration"],
-[data-testid="stStatusWidget"], .stAppDeployButton,
-[class*="viewerBadge"] {{ display:none !important; }}
-header[data-testid="stHeader"] {{ background:transparent; height:2.5rem; }}
-
 .block-container {{
-    padding-top: 2rem !important;
+    padding-top: 1rem !important;
     padding-left: 2.5rem !important;
     padding-right: 2.5rem !important;
     padding-bottom: 2rem !important;
     max-width: 100%;
 }}
 
-/* ---------- Sidebar ---------- */
-section[data-testid="stSidebar"] {{
-    background: #F4F7F6; /* Sidebar terang seperti referensi */
-    border-right: 1px solid rgba(0,0,0,0.05);
-    width: 260px !important;
+/* ---------- Navbar Horizontal (Pill) ---------- */
+/* Container Navbar */
+[data-testid="stHorizontalBlock"]:has(.nav-anchor) {{
+    background: #FFFFFF;
+    border-radius: 100px;
+    padding: 8px 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    align-items: center;
+    margin-bottom: 24px;
 }}
-section[data-testid="stSidebar"] > div:first-child {{ padding-top: 0 !important; }}
-[data-testid="stSidebarHeader"] {{ height: 3rem; min-height: 0; padding: .5rem 1rem 0; }}
-[data-testid="stSidebarUserContent"] {{ padding: 0 1rem 1.5rem !important; }}
-section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{ gap: 6px; }}
 
-/* Tombol Sidebar */
-section[data-testid="stSidebar"] button {{
-    border-radius: 12px !important;
+/* Gaya Tombol Navbar */
+[data-testid="stHorizontalBlock"]:has(.nav-anchor) button {{
+    border-radius: 100px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    border: none !important;
     padding: 0 16px !important;
-    height: 42px !important;
-    width: 100% !important;
-    box-shadow: none !important;
     transition: all 0.2s ease;
 }}
-section[data-testid="stSidebar"] button > div {{
-    width: 100% !important;
-    display: flex !important;
-    justify-content: flex-start !important;
-}}
-section[data-testid="stSidebar"] button p {{
-    font-size: 13.5px !important;
+[data-testid="stHorizontalBlock"]:has(.nav-anchor) button p {{
+    font-size: 13px !important;
+    font-weight: 500 !important;
     margin: 0 !important;
-    color: inherit !important;
 }}
-section[data-testid="stSidebar"] button[kind="secondary"] {{
+[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="secondary"] {{
     background: transparent !important;
     color: #5C5F62 !important;
-    border: none !important;
 }}
-section[data-testid="stSidebar"] button[kind="secondary"]:hover {{
+[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="secondary"]:hover {{
     background: rgba(0,0,0,0.04) !important;
-    color: #1A1A1A !important;
+    color: {NAVY} !important;
 }}
-section[data-testid="stSidebar"] button[kind="primary"] {{
-    background: #FFFFFF !important;
-    color: #1A1A1A !important;
-    border: 1px solid rgba(0,0,0,0.05) !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"] {{
+    background: {NAVY} !important;
+    color: #FFFFFF !important;
 }}
-section[data-testid="stSidebar"] button[kind="primary"] p {{ font-weight: 600 !important; }}
+[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"] p {{
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+}}
 
-/* Selectbox Sidebar */
-section[data-testid="stSidebar"] [data-baseweb="select"] > div {{
-    background: #FFFFFF !important;
-    border: 1px solid rgba(0,0,0,0.08) !important;
-    border-radius: 12px !important;
-    min-height: 40px !important;
+/* Dropdown Selectbox di Navbar */
+[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-baseweb="select"] > div {{
+    background: #F4F7F6 !important;
+    border: 1px solid rgba(0,0,0,0.05) !important;
+    border-radius: 100px !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    display: flex;
+    align-items: center;
 }}
-section[data-testid="stSidebar"] [data-baseweb="select"] * {{
-    color: #1A1A1A !important;
+[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-baseweb="select"] * {{
+    color: {NAVY} !important;
     font-size: 12.5px !important;
 }}
 
-/* ---------- Kartu KPI (Mirip SalesPulse) ---------- */
+/* ---------- Kartu KPI ---------- */
 [data-testid="stMetric"] {{
     {KARTU}
     border-radius: 20px;
@@ -161,7 +158,7 @@ section[data-testid="stSidebar"] [data-baseweb="select"] * {{
     margin-top: 8px;
 }}
 [data-testid="stMetricDelta"] * {{
-    color: {HIJAU} !important; /* Teks hijau untuk delta */
+    color: {HIJAU} !important;
     background: transparent !important;
     font-weight: 500;
 }}
@@ -185,32 +182,24 @@ section[data-testid="stSidebar"] [data-baseweb="select"] * {{
     border-radius: 20px !important;
     height: 40px !important;
     font-weight: 500 !important;
-    transition: all 0.2s ease;
 }}
 .main button[kind="secondary"] {{
     background: #FFFFFF !important;
     border: 1px solid rgba(0,0,0,0.05) !important;
     color: {NAVY} !important;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.02) !important;
 }}
 .main button[kind="secondary"]:hover {{
     background: #F8F9FA !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
 }}
 .main button[kind="primary"] {{
-    background: {NAVY} !important; /* Tombol hitam pekat seperti referensi */
+    background: {NAVY} !important;
     border: none !important;
     color: #FFFFFF !important;
-}}
-.main button[kind="primary"]:hover {{
-    background: #333333 !important;
-    transform: translateY(-1px);
 }}
 .main [data-testid="stDownloadButton"] button {{
     background: #FFFFFF !important;
     border: 1px solid rgba(0,0,0,0.05) !important;
     color: {NAVY} !important;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.02) !important;
 }}
 
 /* ---------- Input & Uploader ---------- */
@@ -218,7 +207,6 @@ section[data-testid="stSidebar"] [data-baseweb="select"] * {{
     background: #FFFFFF !important;
     border: 1px solid rgba(0,0,0,0.08) !important;
     border-radius: 12px !important;
-    min-height: 44px;
 }}
 [data-testid="stFileUploader"] section {{
     background: rgba(255,255,255,0.6) !important;
@@ -230,7 +218,6 @@ section[data-testid="stSidebar"] [data-baseweb="select"] * {{
     border: 1px solid rgba(255,255,255,0.8);
     border-radius: 16px;
 }}
-[data-testid="stAlert"] {{ border-radius: 12px; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -250,6 +237,30 @@ def load_data():
 
 hist, metrik, peramalan, penyebab, sumber = load_data()
 
+# Sanitasi Nama Kolom (Anti KeyError)
+def _cari_kolom(df, kandidat):
+    def normal(s):
+        return (str(s).lower().replace('²', '2').replace('^', '')
+                .replace(' ', '').replace('_', '').replace('-', '')
+                .replace('(', '').replace(')', '').replace('%', ''))
+    peta = {normal(c): c for c in df.columns}
+    for k in kandidat:
+        if normal(k) in peta:
+            return peta[normal(k)]
+    return None
+
+def _alias(df, kandidat, label=None):
+    if label is None: label = kandidat[0]
+    if label in df.columns: return
+    asli = _cari_kolom(df, kandidat)
+    if asli is not None: df[label] = df[asli]
+
+_alias(metrik, ['R2', 'R²', 'R^2', 'R-Squared', 'RSquared', 'R2 (%)'], 'R2')
+_alias(metrik, ['sMAPE(%)', 'sMAPE', 'sMAPE (%)', 'SMAPE'], 'sMAPE(%)')
+_alias(metrik, ['MAE'], 'MAE')
+_alias(metrik, ['RMSE'], 'RMSE')
+_alias(metrik, ['MASE'], 'MASE')
+
 # ============================================================
 # 5. SESSION STATE
 # ============================================================
@@ -265,78 +276,58 @@ if 'info_model_baru' not in st.session_state:
     st.session_state.info_model_baru = None
 
 # ============================================================
-# 6. SIDEBAR
+# 6. NAVBAR HORIZONTAL (PENGGANTI SIDEBAR)
 # ============================================================
-with st.sidebar:
-    # Logo
+# Spacer penanda agar CSS bisa mengenali baris ini
+st.markdown('<div class="nav-anchor"></div>', unsafe_allow_html=True)
+
+# Bagi layar menjadi 3 bagian: Logo (Kiri), Menu (Tengah), Filter (Kanan)
+nav_logo, nav_menu, nav_filter = st.columns([2, 5, 3], gap="small")
+
+with nav_logo:
     if os.path.exists('logo_haleyora.png'):
         with open('logo_haleyora.png', 'rb') as f:
             b64 = base64.b64encode(f.read()).decode()
         st.markdown(
-            f'<div style="padding:10px 0 20px;text-align:left;">'
-            f'<img src="data:image/png;base64,{b64}" style="width:120px;">'
+            f'<div style="display:flex;align-items:center;height:100%;">'
+            f'<img src="data:image/png;base64,{b64}" style="height:28px;">'
             f'</div>', unsafe_allow_html=True)
     else:
         st.markdown(
-            '<div style="padding:10px 0 20px;text-align:left;">'
+            '<div style="display:flex;align-items:center;height:100%;">'
             '<span style="color:#1A1A1A;font-size:16px;font-weight:700;">'
-            'haleyora</span><span style="color:#F5A524;font-size:16px;'
-            'font-weight:700;">power</span></div>', unsafe_allow_html=True)
+            'haleyora<span style="color:#F5A524;">power</span></span></div>', 
+            unsafe_allow_html=True)
 
-    # Judul
-    st.markdown(
-        '<div style="padding:0 0 16px;">'
-        '<div style="color:#1A1A1A;font-size:14px;font-weight:600;'
-        'line-height:1.4;">Gangguan Kabel SR</div>'
-        '<div style="color:#76767C;font-size:11px;margin-top:2px;">'
-        'Peramalan ARIMA &amp; SARIMAX</div></div>', unsafe_allow_html=True)
-
-    # Label Navigasi
-    st.markdown(
-        '<div style="color:#8D8D93;font-size:10px;letter-spacing:1px;'
-        'font-weight:600;padding:0 0 8px;">MENU UTAMA</div>', unsafe_allow_html=True)
-
-    # Menu Navigasi
-    for nama in ["Ringkasan", "Tren Harian", "Peramalan",
-                 "Perbarui & Ramalkan", "Analisis Penyebab",
-                 "Perbandingan Model", "Akurasi Model"]:
+with nav_menu:
+    # Menu diposisikan sejajar dalam kolom
+    sub_cols = st.columns(7)
+    menu_list = ["Ringkasan", "Tren Harian", "Peramalan", "Perbarui & Ramalkan", 
+                 "Analisis Penyebab", "Perbandingan Model", "Akurasi Model"]
+    
+    for i, nama in enumerate(menu_list):
         aktif = st.session_state.halaman == nama
-        if st.button(nama, key=f"menu_{nama}", use_container_width=True,
-                     type="primary" if aktif else "secondary"):
-            st.session_state.halaman = nama
+        with sub_cols[i]:
+            # Label dipendekkan agar muat di navbar
+            label_tampil = nama.replace("Perbarui & Ramalkan", "Perbarui").replace("Perbandingan Model", "Perbandingan").replace("Analisis Penyebab", "Penyebab")
+            if st.button(label_tampil, key=f"nav_{nama}", use_container_width=True,
+                         type="primary" if aktif else "secondary"):
+                st.session_state.halaman = nama
+                st.rerun()
+
+with nav_filter:
+    # Area kanan: Dropdown Bulan + Tombol Reload
+    f1, f2 = st.columns([2, 1])
+    with f1:
+        opsi = ['Semua'] + list(pd.to_datetime(hist.iloc[:, 0]).dt.strftime('%b %Y').unique())
+        pilih_bulan = st.selectbox("p", opsi, label_visibility="collapsed")
+    with f2:
+        if st.button("🔄", key="reload", help="Muat Ulang Data", use_container_width=True):
+            st.cache_data.clear()
             st.rerun()
 
-    # Label Filter
-    st.markdown(
-        '<div style="color:#8D8D93;font-size:10px;letter-spacing:1px;'
-        'font-weight:600;padding:24px 0 8px;">PILIH PERIODE</div>',
-        unsafe_allow_html=True)
-
-    # Dropdown Filter
-    with st.container():
-        opsi = ['Semua'] + list(
-            pd.to_datetime(hist.iloc[:, 0]).dt.strftime('%b %Y').unique())
-        pilih_bulan = st.selectbox("p", opsi, label_visibility="collapsed")
-
-    # Status Model
-    st.markdown(
-        '<div style="margin-top:24px;padding-top:16px;'
-        'border-top:1px solid rgba(0,0,0,0.08);">'
-        '<div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.05);'
-        'border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.02);">'
-        '<div style="display:flex;align-items:center;gap:8px;'
-        'margin-bottom:8px;">'
-        '<div style="width:8px;height:8px;border-radius:50%;'
-        'background:#2E9E5B;"></div>'
-        '<span style="color:#2E9E5B;font-size:11px;font-weight:600;">'
-        'Model Tervalidasi</span></div>'
-        '<div style="color:#76767C;font-size:11px;line-height:1.8;">'
-        'Ljung-Box p &gt; 0,05<br>ARIMA(1,1,1)<br>MASE 1,548<br>'
-        'Belum unggul dari naive</div>'
-        '</div></div>', unsafe_allow_html=True)
-
 # ============================================================
-# 7. HEADER
+# 7. HEADER HALAMAN
 # ============================================================
 hist_f = hist.copy()
 hist_f.iloc[:, 0] = pd.to_datetime(hist_f.iloc[:, 0])
@@ -348,32 +339,22 @@ kol_tgl, kol_val = hist_f.columns[0], hist_f.columns[1]
 kiri, kanan = st.columns([7, 3])
 with kiri:
     st.markdown(
-        f'<div style="color:{NAVY};font-size:28px;font-weight:600;'
+        f'<div style="color:{NAVY};font-size:26px;font-weight:600;'
         f'line-height:1.2;letter-spacing:-.5px;">'
         f'Dashboard Peramalan Gangguan Kabel SR</div>'
-        f'<div style="color:{ABU};font-size:13px;margin-top:6px;">'
-        f'PT. Haleyora Power Serpong &nbsp;&nbsp; Metode ARIMA &amp; SARIMAX '
-        f'Berbasis Time Series &nbsp;&nbsp; '
-        f'<span style="background:#FFFFFF;color:{NAVY};border:1px solid rgba(0,0,0,0.05);'
-        f'box-shadow:0 2px 6px rgba(0,0,0,0.02);font-weight:500;padding:4px 12px;border-radius:20px;">'
-        f'{pilih_bulan}</span>'
+        f'<div style="color:{ABU};font-size:13px;margin-top:4px;">'
+        f'PT. Haleyora Power Serpong &nbsp;&nbsp; Metode ARIMA &amp; SARIMAX'
         f'</div>', unsafe_allow_html=True)
 
 with kanan:
-    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-    t1, t2 = st.columns(2)
-    with t1:
-        if st.button("Muat Ulang", key="reload", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-    with t2:
-        st.download_button(
-            "Unduh Data", key="unduh",
-            data=hist_f.to_csv(index=False).encode('utf-8'),
-            file_name=f"gangguan_SR_{datetime.now():%Y%m%d}.csv",
-            mime="text/csv", use_container_width=True)
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+    st.download_button(
+        "⬇ Unduh Data CSV", key="unduh",
+        data=hist_f.to_csv(index=False).encode('utf-8'),
+        file_name=f"gangguan_SR_{datetime.now():%Y%m%d}.csv",
+        mime="text/csv", use_container_width=True)
 
-st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
 
 # ============================================================
 # 8. HELPER FUNCTIONS
@@ -412,7 +393,7 @@ def kpi():
     total = f"{int(hist_f[kol_val].sum()):,}".replace(",", ".")
     baris_terbaik = metrik.loc[metrik['MASE'].idxmin()]
     mase = float(baris_terbaik['MASE'])
-    
+
     with k1:
         st.metric("Total Gangguan", total, "kasus tercatat ↗")
     with k2:
@@ -428,25 +409,20 @@ def kpi():
                   "kategori sedang ↗")
 
 # ============================================================
-# 10. FUNGSI GRAFIK (Diperhalus ala SalesPulse)
+# 10. FUNGSI GRAFIK
 # ============================================================
 def g_tren(t=320):
     f = go.Figure()
-    
-    # Area chart untuk aktual (gradasi ungu muda)
     f.add_trace(go.Scatter(
         x=hist_f[kol_tgl], y=hist_f[kol_val], name='Aktual',
         line=dict(color=TOSKA, width=2.5, shape='spline'),
         fill='tozeroy', fillcolor='rgba(124, 107, 250, 0.1)',
         hovertemplate='<b>%{x|%d %b %Y}</b><br>%{y} gangguan<extra></extra>'))
-    
-    # Garis putus-putus untuk prediksi
     f.add_trace(go.Scatter(
         x=peramalan['Tanggal'], y=peramalan['Prediksi'],
         name='Prediksi ARIMA(1,1,1)',
         line=dict(color=ORANYE, width=2.5, dash='dot', shape='spline'),
         hovertemplate='<b>%{x|%d %b %Y}</b><br>%{y:.1f}<extra></extra>'))
-    
     f.update_layout(**tata(t))
     return f
 
@@ -455,14 +431,12 @@ def g_penyebab(t=320):
     d['Lengkap'] = d['Penyebab'].astype(str)
     d['Penyebab'] = d['Lengkap'].apply(
         lambda x: x if len(x) <= 22 else x[:20] + '…')
-        
-    # Menggunakan palet warna ungu/neutral
     f = px.pie(d, values='Jumlah', names='Penyebab', hole=.65,
                custom_data=['Lengkap'],
                color_discrete_sequence=['#7C6BFA', '#A29BFE', '#D1CCFF', '#E5E1FF', '#F4F4F5'])
     f.update_traces(
         textposition='inside', textinfo='percent',
-        textfont=dict(size=11, color='white', weight='bold'),
+        textfont=dict(size=11, color='white'),
         hovertemplate='<b>%{customdata[0]}</b><br>%{value:,}<extra></extra>',
         marker=dict(line=dict(color='#FFFFFF', width=3)))
     f.update_layout(
@@ -504,15 +478,14 @@ def g_bulan(t=300):
     b = h.groupby('Bulan', sort=False)[h.columns[1]].sum().reset_index()
     b.columns = ['Bulan', 'Jumlah']
     mx = b['Jumlah'].max()
-    
-    # Batang berwarna putih keperakan dengan ujung membulat (jika didukung)
+
     warna = []
     for i, v in enumerate(b['Jumlah']):
         if i == len(b['Jumlah']) - 1:
-            warna.append(BIRU) # Bar terakhir ungu penuh
+            warna.append(BIRU)
         else:
-            warna.append('rgba(124, 107, 250, 0.2)') # Bar lain ungu pudar
-            
+            warna.append('rgba(124, 107, 250, 0.2)')
+
     teks = [f"{v:,}".replace(",", ".") for v in b['Jumlah']]
     kw = dict(
         x=b['Bulan'], y=b['Jumlah'], text=teks, textposition='outside',
@@ -533,7 +506,6 @@ def g_bulan(t=300):
 
 def b_sumber():
     total_s = sumber['Jumlah'].sum()
-    warna = [BIRU, TOSKA, KUNING, MERAH, '#A8A8AE', '#76767C']
     html = ""
     for i, (_, r) in enumerate(sumber.head(6).iterrows()):
         pct = r['Jumlah'] / total_s * 100
@@ -647,10 +619,7 @@ def simulasi_skenario():
 def g_progres_optimasi():
     df_prog = metrik[~metrik['Model'].str.contains(
         'baseline', case=False, na=False)].copy()
-    
-    # Warna batang: ungu pudar, batang terakhir ungu penuh
     warna_bar = ['rgba(124, 107, 250, 0.2)'] * (len(df_prog) - 1) + [BIRU]
-    
     f = go.Figure(go.Bar(
         x=df_prog['Model'], y=df_prog['MASE'],
         marker_color=warna_bar,
@@ -669,10 +638,7 @@ def g_progres_optimasi():
 def g_progres_r2():
     df_prog = metrik[~metrik['Model'].str.contains(
         'baseline', case=False, na=False)].copy()
-    
-    # Batang berwarna abu-abu netral
     warna_bar = ['#E5E1FF' if v >= 0 else '#FFE5E5' for v in df_prog['R2']]
-    
     f = go.Figure(go.Bar(
         x=df_prog['Model'], y=df_prog['R2'],
         marker_color=warna_bar,
@@ -751,16 +717,23 @@ def kartu_model_toggle():
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
     k1, k2, k3, k4, k5 = st.columns(5)
+
+    def _nil(series, key, fmt):
+        try:
+            return f"{series[key]:{fmt}}".replace(".", ",")
+        except Exception:
+            return "-"
+
     with k1:
-        st.metric("MAE", f"{m['MAE']:.2f}".replace(".", ","))
+        st.metric("MAE", _nil(m, 'MAE', '.2f'))
     with k2:
-        st.metric("RMSE", f"{m['RMSE']:.2f}".replace(".", ","))
+        st.metric("RMSE", _nil(m, 'RMSE', '.2f'))
     with k3:
-        st.metric("sMAPE", f"{m['sMAPE(%)']:.2f}%".replace(".", ","))
+        st.metric("sMAPE", _nil(m, 'sMAPE(%)', '.2f') + ("%" if _nil(m, 'sMAPE(%)', '.2f') != "-" else ""))
     with k4:
-        st.metric("R2", f"{m['R2']:.4f}".replace(".", ","))
+        st.metric("R2", _nil(m, 'R2', '.4f'))
     with k5:
-        st.metric("MASE", f"{m['MASE']:.3f}".replace(".", ","))
+        st.metric("MASE", _nil(m, 'MASE', '.3f'))
 
 # ============================================================
 # 14. PERAMALAN BERGULIR
