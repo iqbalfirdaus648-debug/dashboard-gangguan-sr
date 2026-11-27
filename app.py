@@ -3,7 +3,6 @@
 # Metode: ARIMA(1,1,1) | Kerangka: CRISP-DM
 # Data: Januari - Desember 2025 (365 hari)
 # ============================================================
-
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
@@ -25,28 +24,34 @@ st.set_page_config(
 )
 
 # ============================================================
-# 2. PALET WARNA
+# 2. PALET WARNA (tema abu glass, periwinkle & oranye)
 # ============================================================
-NAVY   = "#0B3B6F"
-BIRU   = "#1565C0"
-TOSKA  = "#00A9A5"
-KUNING = "#F9A825"
-ORANYE = "#F57F17"
-MERAH  = "#E1121C"
+NAVY   = "#1C1C1E"                 # grafit gelap (teks utama)
+BIRU   = "#6F7DEA"                 # periwinkle (aksen utama)
+TOSKA  = "#3A3A3F"                 # grafit (garis data aktual)
+KUNING = "#F5A524"                 # oranye terang (sorotan)
+ORANYE = "#F08A1C"                 # oranye (prediksi)
+MERAH  = "#E5484D"
 HIJAU  = "#2E9E5B"
-ABU    = "#7B8FA8"
-GARIS  = "#E3E9F2"
-PUTIH  = "#FFFFFF"
+ABU    = "#76767C"
+GARIS  = "rgba(0,0,0,.08)"
+PUTIH  = "rgba(255,255,255,.58)"   # permukaan kartu transparan
 
 # ============================================================
 # 3. CSS KUSTOM
 # ============================================================
+KARTU = ("background:rgba(255,255,255,.58); backdrop-filter:blur(14px); "
+         "-webkit-backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.75); "
+         "box-shadow:0 8px 28px rgba(0,0,0,.06);")
+
 st.markdown(f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-html, body, [class*="css"] {{ font-family:'Inter', sans-serif; }}
-.stApp {{ background:#F4F7FB; }}
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+html, body, [class*="css"] {{ font-family:'Outfit', sans-serif; }}
+span[data-testid="stIconMaterial"] {{ font-family:'Material Symbols Rounded' !important; }}
+.stApp {{ background:linear-gradient(135deg,#E6E6E9 0%,#D3D3D7 55%,#DEDEE1 100%); }}
 #MainMenu, footer {{ visibility:hidden; }}
+header[data-testid="stHeader"] {{ background:transparent; }}
 .block-container {{
     padding-top:4rem !important;
     padding-left:2.2rem !important;
@@ -54,67 +59,102 @@ html, body, [class*="css"] {{ font-family:'Inter', sans-serif; }}
     padding-bottom:2rem !important;
     max-width:100%;
 }}
-section[data-testid="stSidebar"] {{ background:{NAVY}; width:280px !important; }}
+
+/* ---------- Sidebar ---------- */
+section[data-testid="stSidebar"] {{ background:#1F1F21; width:280px !important; }}
 section[data-testid="stSidebar"] > div:first-child {{ padding-top:0 !important; }}
 section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{ gap:4px; }}
 section[data-testid="stSidebar"] button {{
-    border:none !important; border-radius:8px !important;
-    font-size:12px !important; text-align:left !important;
+    border:none !important; border-radius:999px !important;
+    font-size:12.5px !important; text-align:left !important;
     justify-content:flex-start !important;
     padding:11px 18px !important; width:100% !important;
 }}
 section[data-testid="stSidebar"] button[kind="secondary"] {{
-    background:transparent !important; color:#A9C4E4 !important;
-    font-weight:500 !important;
+    background:transparent !important; color:#A8A8AE !important;
+    font-weight:400 !important;
 }}
 section[data-testid="stSidebar"] button[kind="secondary"]:hover {{
-    background:#17518C !important; color:#FFFFFF !important;
+    background:#3A3A3E !important; color:#FFFFFF !important;
 }}
 section[data-testid="stSidebar"] button[kind="primary"] {{
-    background:{BIRU} !important; color:#FFFFFF !important;
+    background:#FFFFFF !important; color:#1C1C1E !important;
     font-weight:600 !important;
+    box-shadow:0 4px 14px rgba(0,0,0,.25) !important;
 }}
 section[data-testid="stSidebar"] [data-baseweb="select"] > div {{
-    background:#0A3260 !important; border:1px solid #17518C !important;
-    border-radius:8px !important; min-height:44px !important;
+    background:#2A2A2D !important; border:1px solid #48484C !important;
+    border-radius:999px !important; min-height:44px !important;
 }}
 section[data-testid="stSidebar"] [data-baseweb="select"] div {{
-    color:#DCE9F8 !important; font-size:12px !important;
+    color:#E4E4E7 !important; font-size:12px !important;
 }}
 [data-baseweb="popover"] li {{ font-size:12px !important; padding:10px 14px !important; }}
+
+/* ---------- Kartu KPI ---------- */
 [data-testid="stMetric"] {{
-    background:{PUTIH}; border:1px solid {GARIS};
-    border-radius:12px; padding:16px 18px;
+    {KARTU}
+    border-radius:22px; padding:18px 22px;
 }}
 [data-testid="stMetricLabel"] p {{
-    color:{ABU} !important; font-size:10px !important;
-    font-weight:600 !important; text-transform:uppercase;
-    letter-spacing:.6px;
+    color:{ABU} !important; font-size:11px !important;
+    font-weight:500 !important; letter-spacing:.3px;
 }}
 [data-testid="stMetricValue"] {{
-    color:{NAVY} !important; font-size:26px !important;
-    font-weight:800 !important;
+    color:{NAVY} !important; font-size:34px !important;
+    font-weight:300 !important; letter-spacing:-.5px;
 }}
-[data-testid="stMetricDelta"] {{ font-size:10px !important; }}
+[data-testid="stMetricDelta"] {{ font-size:11px !important; color:{ABU} !important; }}
+[data-testid="stMetricDelta"] svg {{ display:none; }}
+
+/* ---------- Grafik & tabel ---------- */
 [data-testid="stPlotlyChart"] {{
-    background:{PUTIH}; border:1px solid {GARIS};
-    border-radius:12px; padding:4px;
+    {KARTU}
+    border-radius:22px; padding:10px;
 }}
-[data-testid="stDataFrame"] {{ border:1px solid {GARIS}; border-radius:12px; }}
+[data-testid="stDataFrame"] {{
+    {KARTU}
+    border-radius:22px; padding:6px; overflow:hidden;
+}}
+
+/* ---------- Tombol area utama ---------- */
 .main button[kind="secondary"] {{
-    background:{PUTIH} !important; border:1px solid #D6DFEC !important;
-    color:{NAVY} !important; border-radius:8px !important;
-    font-size:11px !important; font-weight:600 !important;
+    background:rgba(255,255,255,.75) !important;
+    border:1px solid rgba(255,255,255,.9) !important;
+    color:{NAVY} !important; border-radius:999px !important;
+    font-size:12px !important; font-weight:500 !important;
 }}
 .main button[kind="secondary"]:hover {{
     background:{NAVY} !important; color:#FFFFFF !important;
 }}
-.main [data-testid="stDownloadButton"] button {{
+.main button[kind="primary"] {{
     background:{BIRU} !important; border:none !important;
-    color:#FFFFFF !important; border-radius:8px !important;
-    font-size:11px !important; font-weight:600 !important;
+    color:#FFFFFF !important; border-radius:999px !important;
+    font-size:12px !important; font-weight:500 !important;
 }}
-.main [data-testid="stDownloadButton"] button:hover {{ background:#0D47A1 !important; }}
+.main button[kind="primary"]:hover {{ background:#5A68D6 !important; }}
+.main [data-testid="stDownloadButton"] button {{
+    background:{NAVY} !important; border:none !important;
+    color:#FFFFFF !important; border-radius:999px !important;
+    font-size:12px !important; font-weight:500 !important;
+}}
+.main [data-testid="stDownloadButton"] button:hover {{ background:#3A3A3F !important; }}
+
+/* ---------- Input ---------- */
+.main [data-baseweb="select"] > div {{
+    background:rgba(255,255,255,.7) !important;
+    border:1px solid rgba(255,255,255,.9) !important;
+    border-radius:14px !important;
+}}
+[data-testid="stFileUploader"] section {{
+    background:rgba(255,255,255,.55) !important;
+    border:1px dashed #B5B5BB !important; border-radius:18px !important;
+}}
+[data-testid="stExpander"] {{
+    background:rgba(255,255,255,.5); border:1px solid rgba(255,255,255,.75);
+    border-radius:18px;
+}}
+[data-testid="stAlert"] {{ border-radius:16px; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -158,29 +198,29 @@ with st.sidebar:
             b64 = base64.b64encode(f.read()).decode()
         st.markdown(
             f'<div style="background:#FFFFFF;padding:18px;text-align:center;'
-            f'border-radius:0 0 12px 12px;margin-bottom:18px;">'
+            f'border-radius:0 0 22px 22px;margin-bottom:18px;">'
             f'<img src="data:image/png;base64,{b64}" style="width:130px;">'
             f'</div>', unsafe_allow_html=True)
     else:
         st.markdown(
             '<div style="background:#FFFFFF;padding:24px;text-align:center;'
-            'border-radius:0 0 12px 12px;margin-bottom:18px;">'
-            '<span style="color:#0B3B6F;font-size:14px;font-weight:800;">'
-            'haleyora</span><span style="color:#F9A825;font-size:14px;'
-            'font-weight:800;">power</span></div>', unsafe_allow_html=True)
+            'border-radius:0 0 22px 22px;margin-bottom:18px;">'
+            '<span style="color:#1C1C1E;font-size:15px;font-weight:600;">'
+            'haleyora</span><span style="color:#F5A524;font-size:15px;'
+            'font-weight:600;">power</span></div>', unsafe_allow_html=True)
 
     # Judul
     st.markdown(
         '<div style="padding:0 8px 16px;">'
-        '<div style="color:#FFFFFF;font-size:12.5px;font-weight:700;'
+        '<div style="color:#FFFFFF;font-size:13.5px;font-weight:500;'
         'line-height:1.4;">Dashboard Gangguan Kabel SR</div>'
-        '<div style="color:#7FA6D4;font-size:9.5px;margin-top:3px;">'
+        '<div style="color:#A8A8AE;font-size:10px;margin-top:3px;">'
         'Peramalan Berbasis ARIMA &amp; SARIMAX</div></div>', unsafe_allow_html=True)
 
     # Label Navigasi
     st.markdown(
-        '<div style="color:#5B87BC;font-size:9px;letter-spacing:1.2px;'
-        'font-weight:700;padding:0 8px 8px;border-top:1px solid #17518C;'
+        '<div style="color:#8D8D93;font-size:9.5px;letter-spacing:1.2px;'
+        'font-weight:600;padding:0 8px 8px;border-top:1px solid #48484C;'
         'padding-top:14px;">NAVIGASI</div>', unsafe_allow_html=True)
 
     # Menu Navigasi
@@ -195,9 +235,9 @@ with st.sidebar:
 
     # Label Filter
     st.markdown(
-        '<div style="color:#5B87BC;font-size:9px;letter-spacing:1.2px;'
-        'font-weight:700;padding:18px 8px 8px;margin-top:8px;'
-        'border-top:1px solid #17518C;">PILIH PERIODE</div>',
+        '<div style="color:#8D8D93;font-size:9.5px;letter-spacing:1.2px;'
+        'font-weight:600;padding:18px 8px 8px;margin-top:8px;'
+        'border-top:1px solid #48484C;">PILIH PERIODE</div>',
         unsafe_allow_html=True)
 
     # Dropdown Filter
@@ -211,16 +251,16 @@ with st.sidebar:
     # Status Model
     st.markdown(
         '<div style="margin:20px 8px 0;padding-top:16px;'
-        'border-top:1px solid #17518C;">'
-        '<div style="background:#0A3260;border:1px solid #17518C;'
-        'border-radius:10px;padding:14px;">'
+        'border-top:1px solid #48484C;">'
+        '<div style="background:#2A2A2D;border:1px solid #48484C;'
+        'border-radius:18px;padding:14px;">'
         '<div style="display:flex;align-items:center;gap:7px;'
         'margin-bottom:8px;">'
         '<div style="width:7px;height:7px;border-radius:50%;'
         'background:#4ADE80;"></div>'
-        '<span style="color:#4ADE80;font-size:10px;font-weight:700;">'
+        '<span style="color:#4ADE80;font-size:10.5px;font-weight:600;">'
         'Model Tervalidasi</span></div>'
-        '<div style="color:#7FA6D4;font-size:9px;line-height:1.9;">'
+        '<div style="color:#A8A8AE;font-size:9.5px;line-height:1.9;">'
         'Ljung-Box p &gt; 0,05<br>ARIMA(1,1,1)<br>MASE 1,548<br>'
         'Belum unggul dari naive</div>'
         '</div></div>', unsafe_allow_html=True)
@@ -238,12 +278,15 @@ kol_tgl, kol_val = hist_f.columns[0], hist_f.columns[1]
 kiri, kanan = st.columns([7, 2])
 with kiri:
     st.markdown(
-        f'<div style="color:{NAVY};font-size:21px;font-weight:800;'
-        f'line-height:1.3;">Dashboard Peramalan Gangguan Kabel SR</div>'
-        f'<div style="color:{ABU};font-size:11px;margin-top:5px;">'
+        f'<div style="color:{NAVY};font-size:30px;font-weight:500;'
+        f'line-height:1.25;letter-spacing:-.6px;">'
+        f'Dashboard Peramalan Gangguan Kabel SR</div>'
+        f'<div style="color:{ABU};font-size:12px;margin-top:6px;">'
         f'PT. Haleyora Power Serpong &nbsp;&nbsp; Metode ARIMA &amp; SARIMAX '
         f'Berbasis Time Series &nbsp;&nbsp; '
-        f'<span style="color:{BIRU};font-weight:600;">{pilih_bulan}</span>'
+        f'<span style="background:rgba(111,125,234,.16);color:{BIRU};'
+        f'font-weight:500;padding:2px 10px;border-radius:999px;">'
+        f'{pilih_bulan}</span>'
         f'</div>', unsafe_allow_html=True)
 
 with kanan:
@@ -266,26 +309,29 @@ st.markdown(
 # ============================================================
 # 8. HELPER FUNCTIONS
 # ============================================================
+TRANSPARAN = 'rgba(0,0,0,0)'
+
 def tata(t=280):
     return dict(
-        plot_bgcolor=PUTIH, paper_bgcolor=PUTIH,
-        font=dict(color=ABU, size=10, family='Inter,sans-serif'),
+        plot_bgcolor=TRANSPARAN, paper_bgcolor=TRANSPARAN,
+        font=dict(color=ABU, size=10, family='Outfit,sans-serif'),
         height=t, margin=dict(l=20, r=20, t=16, b=40),
-        xaxis=dict(showgrid=False, tickfont=dict(size=9.5, color=ABU),
+        xaxis=dict(showgrid=False, tickfont=dict(size=10, color=ABU),
                    linecolor=GARIS, showline=True),
-        yaxis=dict(gridcolor=GARIS, tickfont=dict(size=9.5, color=ABU),
+        yaxis=dict(gridcolor=GARIS, tickfont=dict(size=10, color=ABU),
                    zeroline=False),
         legend=dict(orientation='h', yanchor='bottom', y=1.02, x=0,
-                    font=dict(size=10, color=ABU), bgcolor='rgba(0,0,0,0)'),
+                    font=dict(size=10, color=ABU), bgcolor=TRANSPARAN),
         hoverlabel=dict(bgcolor=NAVY, font=dict(color='white', size=11))
     )
 
 def judul(teks, sub=""):
-    baris = (f'<div style="color:{ABU};font-size:10px;margin-top:3px;">'
+    baris = (f'<div style="color:{ABU};font-size:11px;margin-top:3px;">'
              f'{sub}</div>') if sub else ''
     st.markdown(
         f'<div style="margin:0 0 12px;">'
-        f'<div style="color:{NAVY};font-size:13px;font-weight:700;">'
+        f'<div style="color:{NAVY};font-size:17px;font-weight:500;'
+        f'letter-spacing:-.2px;">'
         f'{teks}</div>{baris}'
         f'<div style="width:26px;height:3px;background:{KUNING};'
         f'border-radius:2px;margin-top:7px;"></div></div>',
@@ -321,7 +367,7 @@ def g_tren(t=290):
     f.add_trace(go.Scatter(
         x=hist_f[kol_tgl], y=hist_f[kol_val], name='Aktual',
         line=dict(color=TOSKA, width=2.2),
-        fill='tozeroy', fillcolor='rgba(0,169,165,.08)',
+        fill='tozeroy', fillcolor='rgba(58,58,63,.08)',
         hovertemplate='<b>%{x|%d %b %Y}</b><br>%{y} gangguan<extra></extra>'))
     f.add_trace(go.Scatter(
         x=peramalan['Tanggal'], y=peramalan['Prediksi'],
@@ -333,15 +379,15 @@ def g_tren(t=290):
 
 def g_penyebab(t=290):
     f = px.pie(penyebab.head(5), values='Jumlah', names='Penyebab', hole=.6,
-               color_discrete_sequence=[BIRU, TOSKA, KUNING, MERAH, '#94A3B8'])
+               color_discrete_sequence=[BIRU, TOSKA, KUNING, MERAH, '#A8A8AE'])
     f.update_traces(
         textposition='inside', textinfo='percent',
         hovertemplate='<b>%{label}</b><br>%{value:,}<extra></extra>',
-        marker=dict(line=dict(color=PUTIH, width=2.5)))
+        marker=dict(line=dict(color='#E6E6E9', width=2.5)))
     f.update_layout(
-        paper_bgcolor=PUTIH, height=t,
+        paper_bgcolor=TRANSPARAN, height=t,
         margin=dict(l=10, r=10, t=16, b=10),
-        font=dict(color=ABU, family='Inter,sans-serif'),
+        font=dict(color=ABU, family='Outfit,sans-serif'),
         legend=dict(font=dict(size=9, color=ABU)),
         hoverlabel=dict(bgcolor=NAVY, font=dict(color='white')))
     return f
@@ -355,7 +401,7 @@ def g_ramal(t=250):
     f.add_trace(go.Scatter(
         x=peramalan['Tanggal'], y=peramalan['CI_Bawah'],
         fill='tonexty', mode='lines',
-        fillcolor='rgba(249,168,37,.16)',
+        fillcolor='rgba(245,165,36,.18)',
         line=dict(color='rgba(0,0,0,0)'),
         name='Interval 95%', hoverinfo='skip'))
     f.add_trace(go.Scatter(
@@ -381,13 +427,13 @@ def g_bulan(t=250):
         marker_line_width=0,
         hovertemplate='<b>%{x}</b><br>%{y:,}<extra></extra>'))
     L = tata(t)
-    L['xaxis'].update(tickangle=30, tickfont=dict(size=8.5, color=ABU))
+    L['xaxis'].update(tickangle=30, tickfont=dict(size=9, color=ABU))
     f.update_layout(**L)
     return f
 
 def b_sumber():
     total_s = sumber['Jumlah'].sum()
-    warna = [BIRU, TOSKA, KUNING, MERAH, '#94A3B8', '#64748B']
+    warna = [BIRU, TOSKA, KUNING, MERAH, '#A8A8AE', '#76767C']
     html = ""
     for i, (_, r) in enumerate(sumber.head(6).iterrows()):
         pct = r['Jumlah'] / total_s * 100
@@ -397,10 +443,10 @@ def b_sumber():
             f'<div style="margin-bottom:14px;">'
             f'<div style="display:flex;justify-content:space-between;'
             f'margin-bottom:5px;">'
-            f'<span style="color:{NAVY};font-size:10.5px;">{nama}</span>'
-            f'<span style="color:{ABU};font-size:10px;font-weight:600;">'
+            f'<span style="color:{NAVY};font-size:11.5px;">{nama}</span>'
+            f'<span style="color:{ABU};font-size:10.5px;font-weight:500;">'
             f'{jml} · {pct:.1f}%</span></div>'
-            f'<div style="background:#EEF2F8;border-radius:5px;height:7px;">'
+            f'<div style="background:rgba(0,0,0,.07);border-radius:5px;height:7px;">'
             f'<div style="background:{warna[i % len(warna)]};height:7px;'
             f'border-radius:5px;width:{min(pct, 100):.1f}%;"></div>'
             f'</div></div>')
@@ -422,12 +468,12 @@ def t_metrik():
 
 def catatan():
     st.markdown(
-        f'<div style="background:{PUTIH};border:1px solid {GARIS};'
-        f'border-left:4px solid {KUNING};border-radius:0 10px 10px 0;'
-        f'padding:14px 18px;margin-top:10px;">'
-        f'<div style="color:{NAVY};font-size:11px;font-weight:700;'
+        f'<div style="{KARTU}border-left:4px solid {KUNING};'
+        f'border-radius:6px 22px 22px 6px;'
+        f'padding:16px 20px;margin-top:10px;">'
+        f'<div style="color:{NAVY};font-size:12.5px;font-weight:600;'
         f'margin-bottom:6px;">Interpretasi Hasil</div>'
-        f'<div style="color:{ABU};font-size:10.5px;line-height:1.8;">'
+        f'<div style="color:{ABU};font-size:11.5px;line-height:1.8;">'
         f'Model ARIMA(1,1,1) menghasilkan MASE 1,548. Nilai ini belum '
         f'mengungguli baseline naive (1,527) maupun mean (1,528), dengan '
         f'selisih sangat tipis hanya 0,021 pada skala MASE. Penambahan '
@@ -448,10 +494,10 @@ def simulasi_skenario():
     judul("Simulasi Skenario Faktor Eksternal",
           "Ilustrasi dampak faktor eksogen tambahan di luar model")
     st.markdown(
-        f'<div style="background:{PUTIH};border:1px solid {GARIS};'
-        f'border-left:4px solid {BIRU};border-radius:0 10px 10px 0;'
-        f'padding:12px 16px;margin-bottom:14px;">'
-        f'<div style="color:{ABU};font-size:10.5px;line-height:1.7;">'
+        f'<div style="{KARTU}border-left:4px solid {BIRU};'
+        f'border-radius:6px 22px 22px 6px;'
+        f'padding:14px 18px;margin-bottom:14px;">'
+        f'<div style="color:{ABU};font-size:11.5px;line-height:1.7;">'
         f'Model ARIMA sudah menangkap pola historis murni dari data. '
         f'Simulasi ini menggeser hasil prediksi secara proporsional untuk '
         f'mengilustrasikan potensi dampak faktor cuaca yang belum '
@@ -481,7 +527,7 @@ def simulasi_skenario():
         x=df_sim['Tanggal'], y=df_sim['Prediksi_Sim'],
         name=f'Simulasi: {skenario}',
         line=dict(color=ORANYE, width=2.5),
-        fill='tonexty', fillcolor='rgba(245,166,35,.12)'))
+        fill='tonexty', fillcolor='rgba(245,165,36,.14)'))
     f.update_layout(**tata(280))
     st.plotly_chart(f, use_container_width=True)
 
@@ -501,7 +547,7 @@ def simulasi_skenario():
 def g_progres_optimasi():
     df_prog = metrik[~metrik['Model'].str.contains(
         'baseline', case=False, na=False)].copy()
-    palet = [ABU, BIRU, ORANYE, '#94A3B8']
+    palet = [ABU, BIRU, ORANYE, '#A8A8AE']
     warna_bar = [palet[i % len(palet)] for i in range(len(df_prog))]
     f = go.Figure(go.Bar(
         x=df_prog['Model'], y=df_prog['MASE'],
@@ -585,16 +631,16 @@ def kartu_model_toggle():
 
     m = baris.iloc[0]
     st.markdown(
-        f'<div style="background:{PUTIH};border:2px solid {pilihan["warna"]};'
-        f'border-radius:14px;padding:20px;">'
+        f'<div style="{KARTU}border:2px solid {pilihan["warna"]};'
+        f'border-radius:22px;padding:22px;">'
         f'<div style="display:flex;justify-content:space-between;'
         f'align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">'
-        f'<span style="color:{NAVY};font-size:14px;font-weight:800;">'
+        f'<span style="color:{NAVY};font-size:16px;font-weight:600;">'
         f'{st.session_state.model_terpilih}</span>'
         f'<span style="background:{pilihan["warna"]}22;color:{pilihan["warna"]};'
-        f'padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;">'
+        f'padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600;">'
         f'{pilihan["nama_metrik"]}</span></div>'
-        f'<div style="color:{ABU};font-size:11px;line-height:1.7;">'
+        f'<div style="color:{ABU};font-size:12px;line-height:1.7;">'
         f'{pilihan["deskripsi"]}</div></div>',
         unsafe_allow_html=True)
 
@@ -666,12 +712,12 @@ def proses_data_upload(df_baru, kol_tgl_baru, kol_val_baru,
 
 def halaman_perbarui_ramalkan():
     st.markdown(
-        f'<div style="background:{PUTIH};border:1px solid {GARIS};'
-        f'border-left:4px solid {BIRU};border-radius:0 10px 10px 0;'
-        f'padding:14px 18px;margin-bottom:18px;">'
-        f'<div style="color:{NAVY};font-size:11px;font-weight:700;'
+        f'<div style="{KARTU}border-left:4px solid {BIRU};'
+        f'border-radius:6px 22px 22px 6px;'
+        f'padding:16px 20px;margin-bottom:18px;">'
+        f'<div style="color:{NAVY};font-size:12.5px;font-weight:600;'
         f'margin-bottom:6px;">Peramalan Bergulir (Rolling Forecast)</div>'
-        f'<div style="color:{ABU};font-size:10.5px;line-height:1.8;">'
+        f'<div style="color:{ABU};font-size:11.5px;line-height:1.8;">'
         f'Fitur ini memungkinkan sistem melatih ulang model SARIMAX '
         f'secara otomatis menggunakan data gangguan terbaru yang diunggah, '
         f'kemudian menghasilkan peramalan dari titik data paling akhir. '
@@ -680,22 +726,22 @@ def halaman_perbarui_ramalkan():
         f'mengubah kode program.</div></div>', unsafe_allow_html=True)
 
     st.markdown(
-        f'<div style="background:{PUTIH};border:1px solid {GARIS};'
-        f'border-radius:12px;padding:16px 20px;margin-bottom:18px;">'
-        f'<div style="color:{NAVY};font-size:11.5px;font-weight:700;'
+        f'<div style="{KARTU}'
+        f'border-radius:22px;padding:18px 22px;margin-bottom:18px;">'
+        f'<div style="color:{NAVY};font-size:13px;font-weight:600;'
         f'margin-bottom:10px;">Panduan Rentang Peramalan</div>'
         f'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
         f'<div style="flex:1;min-width:220px;background:#F0FDF4;'
-        f'border-radius:8px;padding:10px 14px;">'
-        f'<span style="color:{HIJAU};font-size:10.5px;font-weight:700;">'
+        f'border-radius:14px;padding:10px 14px;">'
+        f'<span style="color:{HIJAU};font-size:11px;font-weight:600;">'
         f'7-42 HARI — DISARANKAN</span>'
-        f'<div style="color:#166534;font-size:10px;line-height:1.6;'
+        f'<div style="color:#166534;font-size:10.5px;line-height:1.6;'
         f'margin-top:4px;">Interval kepercayaan masih wajar.</div></div>'
         f'<div style="flex:1;min-width:220px;background:#FFFFEB;'
-        f'border-radius:8px;padding:10px 14px;">'
-        f'<span style="color:#92400E;font-size:10.5px;font-weight:700;">'
+        f'border-radius:14px;padding:10px 14px;">'
+        f'<span style="color:#92400E;font-size:11px;font-weight:600;">'
         f'43-120 HARI — HANYA ILUSTRASI</span>'
-        f'<div style="color:#92400E;font-size:10px;line-height:1.6;'
+        f'<div style="color:#92400E;font-size:10.5px;line-height:1.6;'
         f'margin-top:4px;">Interval melebar signifikan.</div></div>'
         f'</div></div>', unsafe_allow_html=True)
 
@@ -734,17 +780,17 @@ def halaman_perbarui_ramalkan():
 
             if jumlah_hari <= 42:
                 st.markdown(
-                    f'<div style="background:#DCFCE7;border-radius:8px;'
+                    f'<div style="background:#DCFCE7;border-radius:14px;'
                     f'padding:8px 14px;margin-top:6px;margin-bottom:4px;">'
-                    f'<span style="color:#166534;font-size:11px;'
-                    f'font-weight:600;">Dalam rentang disarankan.</span>'
+                    f'<span style="color:#166534;font-size:11.5px;'
+                    f'font-weight:500;">Dalam rentang disarankan.</span>'
                     f'</div>', unsafe_allow_html=True)
             else:
                 st.markdown(
-                    f'<div style="background:#FEF3C7;border-radius:8px;'
+                    f'<div style="background:#FEF3C7;border-radius:14px;'
                     f'padding:8px 14px;margin-top:6px;margin-bottom:4px;">'
-                    f'<span style="color:#92400E;font-size:11px;'
-                    f'font-weight:600;">Melebihi rentang disarankan.</span>'
+                    f'<span style="color:#92400E;font-size:11.5px;'
+                    f'font-weight:500;">Melebihi rentang disarankan.</span>'
                     f'</div>', unsafe_allow_html=True)
 
             st.markdown("<div style='height:8px'></div>",
@@ -776,9 +822,9 @@ def halaman_perbarui_ramalkan():
         st.markdown("<div style='height:20px'></div>",
                     unsafe_allow_html=True)
         st.markdown(
-            f'<div style="background:#DCFCE7;border-radius:10px;'
+            f'<div style="background:#DCFCE7;border-radius:16px;'
             f'padding:12px 16px;margin-bottom:16px;">'
-            f'<div style="color:{HIJAU};font-size:12px;font-weight:700;">'
+            f'<div style="color:{HIJAU};font-size:12.5px;font-weight:600;">'
             f'Model berhasil dilatih ulang dari {len(ts_baru)} hari data '
             f'({ts_baru.index[0].strftime("%d %b %Y")} - '
             f'{ts_baru.index[-1].strftime("%d %b %Y")})</div></div>',
@@ -814,7 +860,7 @@ def halaman_perbarui_ramalkan():
             x=ts_baru.index[-60:], y=ts_baru.values[-60:],
             name="Data Aktual (Diunggah)",
             line=dict(color=TOSKA, width=2.2),
-            fill="tozeroy", fillcolor="rgba(0,169,165,0.08)"))
+            fill="tozeroy", fillcolor="rgba(58,58,63,0.08)"))
         f.add_trace(go.Scatter(
             x=hasil_baru['Tanggal'], y=hasil_baru['CI_Atas'],
             mode="lines", line=dict(color="rgba(0,0,0,0)"),
@@ -822,7 +868,7 @@ def halaman_perbarui_ramalkan():
         f.add_trace(go.Scatter(
             x=hasil_baru['Tanggal'], y=hasil_baru['CI_Bawah'],
             fill="tonexty", mode="lines",
-            fillcolor="rgba(249,168,37,.16)",
+            fillcolor="rgba(245,165,36,.18)",
             line=dict(color="rgba(0,0,0,0)"),
             name="Interval 95%", hoverinfo="skip"))
         f.add_trace(go.Scatter(
@@ -880,7 +926,9 @@ if halaman == 'Ringkasan':
         st.plotly_chart(g_bulan(), use_container_width=True)
     with c5:
         judul("Kanal Pelaporan", "Sumber laporan pelanggan")
-        st.markdown(b_sumber(), unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="{KARTU}border-radius:22px;padding:20px;">'
+            f'{b_sumber()}</div>', unsafe_allow_html=True)
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
     judul("Perbandingan Model vs Baseline", "Evaluasi pada data testing")
@@ -903,33 +951,33 @@ elif halaman == 'Tren Harian':
         s = hist_f[kol_val]
         total = f"{int(s.sum()):,}".replace(",", ".")
         st.markdown(
-            f'<div style="background:{PUTIH};border:1px solid {GARIS};'
-            f'border-radius:12px;padding:18px;">'
-            f'<table style="width:100%;font-size:11.5px;">'
+            f'<div style="{KARTU}'
+            f'border-radius:22px;padding:18px;">'
+            f'<table style="width:100%;font-size:12.5px;">'
             f'<tr style="border-bottom:1px solid {GARIS};">'
             f'<td style="padding:10px 4px;color:{ABU};">Jumlah observasi</td>'
             f'<td style="padding:10px 4px;text-align:right;color:{NAVY};'
-            f'font-weight:700;">{len(s)} hari</td></tr>'
+            f'font-weight:600;">{len(s)} hari</td></tr>'
             f'<tr style="border-bottom:1px solid {GARIS};">'
             f'<td style="padding:10px 4px;color:{ABU};">Total gangguan</td>'
             f'<td style="padding:10px 4px;text-align:right;color:{NAVY};'
-            f'font-weight:700;">{total}</td></tr>'
+            f'font-weight:600;">{total}</td></tr>'
             f'<tr style="border-bottom:1px solid {GARIS};">'
             f'<td style="padding:10px 4px;color:{ABU};">Rata-rata harian</td>'
             f'<td style="padding:10px 4px;text-align:right;color:{NAVY};'
-            f'font-weight:700;">{s.mean():.2f}</td></tr>'
+            f'font-weight:600;">{s.mean():.2f}</td></tr>'
             f'<tr style="border-bottom:1px solid {GARIS};">'
             f'<td style="padding:10px 4px;color:{ABU};">Standar deviasi</td>'
             f'<td style="padding:10px 4px;text-align:right;color:{NAVY};'
-            f'font-weight:700;">{s.std():.2f}</td></tr>'
+            f'font-weight:600;">{s.std():.2f}</td></tr>'
             f'<tr style="border-bottom:1px solid {GARIS};">'
             f'<td style="padding:10px 4px;color:{ABU};">Nilai minimum</td>'
             f'<td style="padding:10px 4px;text-align:right;color:{NAVY};'
-            f'font-weight:700;">{int(s.min())}</td></tr>'
+            f'font-weight:600;">{int(s.min())}</td></tr>'
             f'<tr><td style="padding:10px 4px;color:{ABU};">'
             f'Nilai maksimum</td>'
             f'<td style="padding:10px 4px;text-align:right;color:{MERAH};'
-            f'font-weight:700;">{int(s.max())}</td></tr>'
+            f'font-weight:600;">{int(s.max())}</td></tr>'
             f'</table></div>', unsafe_allow_html=True)
 
 elif halaman == 'Peramalan':
@@ -974,7 +1022,9 @@ elif halaman == 'Analisis Penyebab':
         st.plotly_chart(g_penyebab(340), use_container_width=True)
     with b:
         judul("Kanal Pelaporan", "Sumber laporan pelanggan")
-        st.markdown(b_sumber(), unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="{KARTU}border-radius:22px;padding:20px;">'
+            f'{b_sumber()}</div>', unsafe_allow_html=True)
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
     judul("Rincian Penyebab Gangguan", "Seluruh kategori tercatat")
@@ -985,12 +1035,12 @@ elif halaman == 'Analisis Penyebab':
 
 elif halaman == 'Perbandingan Model':
     st.markdown(
-        f'<div style="background:{PUTIH};border:1px solid {GARIS};'
-        f'border-left:4px solid {BIRU};border-radius:0 10px 10px 0;'
-        f'padding:14px 18px;margin-bottom:18px;">'
-        f'<div style="color:{NAVY};font-size:11px;font-weight:700;'
+        f'<div style="{KARTU}border-left:4px solid {BIRU};'
+        f'border-radius:6px 22px 22px 6px;'
+        f'padding:16px 20px;margin-bottom:18px;">'
+        f'<div style="color:{NAVY};font-size:12.5px;font-weight:600;'
         f'margin-bottom:6px;">Bandingkan Model Secara Interaktif</div>'
-        f'<div style="color:{ABU};font-size:10.5px;line-height:1.8;">'
+        f'<div style="color:{ABU};font-size:11.5px;line-height:1.8;">'
         f'Klik salah satu tombol di bawah untuk melihat detail performa '
         f'tiap tahap optimasi model. Penambahan variabel eksogen justru '
         f'menurunkan akurasi pada data uji.</div></div>',
@@ -1014,12 +1064,12 @@ elif halaman == 'Perbandingan Model':
     t_metrik()
 
     st.markdown(
-        f'<div style="background:{PUTIH};border:1px solid {GARIS};'
-        f'border-left:4px solid {HIJAU};border-radius:0 10px 10px 0;'
-        f'padding:14px 18px;margin-top:14px;">'
-        f'<div style="color:{NAVY};font-size:11px;font-weight:700;'
+        f'<div style="{KARTU}border-left:4px solid {HIJAU};'
+        f'border-radius:6px 22px 22px 6px;'
+        f'padding:16px 20px;margin-top:14px;">'
+        f'<div style="color:{NAVY};font-size:12.5px;font-weight:600;'
         f'margin-bottom:6px;">Kesimpulan Optimasi</div>'
-        f'<div style="color:{ABU};font-size:10.5px;line-height:1.8;">'
+        f'<div style="color:{ABU};font-size:11.5px;line-height:1.8;">'
         f'Penambahan variabel eksogen berbasis kalender pada model SARIMAX '
         f'TIDAK berhasil meningkatkan akurasi. MASE ARIMA(1,1,1) sebesar '
         f'1,548 justru lebih rendah dibanding SARIMAX kalender dasar (1,653) '
@@ -1065,14 +1115,13 @@ elif halaman == 'Akurasi Model':
     ):
         with kol:
             st.markdown(
-                f'<div style="background:{PUTIH};border:1px solid {GARIS};'
-                f'border-radius:12px;padding:16px;">'
-                f'<div style="color:{ABU};font-size:9.5px;'
-                f'text-transform:uppercase;letter-spacing:.6px;'
-                f'font-weight:600;">{label}</div>'
-                f'<div style="color:{HIJAU};font-size:22px;font-weight:800;'
+                f'<div style="{KARTU}'
+                f'border-radius:22px;padding:18px 22px;">'
+                f'<div style="color:{ABU};font-size:11px;'
+                f'font-weight:500;">{label}</div>'
+                f'<div style="color:{HIJAU};font-size:30px;font-weight:300;'
                 f'margin:6px 0 4px;">{nilai}</div>'
-                f'<div style="color:{ABU};font-size:9.5px;">'
+                f'<div style="color:{ABU};font-size:10.5px;">'
                 f'p &gt; 0,05 · white noise</div></div>',
                 unsafe_allow_html=True)
 
@@ -1080,7 +1129,7 @@ elif halaman == 'Akurasi Model':
 # 16. FOOTER
 # ============================================================
 st.markdown(
-    f'<div style="text-align:center;color:{ABU};font-size:9.5px;'
+    f'<div style="text-align:center;color:{ABU};font-size:10.5px;'
     f'padding:24px 0 8px;border-top:1px solid {GARIS};margin-top:28px;">'
     f'Dashboard Peramalan Gangguan Kabel Sambungan Rumah &nbsp;·&nbsp; '
     f'PT. Haleyora Power Serpong &nbsp;·&nbsp; ARIMA(1,1,1) &nbsp;·&nbsp; '
