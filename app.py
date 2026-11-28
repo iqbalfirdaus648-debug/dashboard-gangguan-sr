@@ -1,16 +1,20 @@
 # ============================================================
 # DASHBOARD PERAMALAN GANGGUAN KABEL SR - PLN UP3 SERPONG
-# Desain: Modern SaaS (Navbar Lebar, Logo Besar, Glass KPI)
+# Desain: Futuristik Dark Glass + Sidebar Kartu + Grafik Beranimasi
+# Logika model (ARIMA / SARIMAX) TIDAK diubah.
 # ============================================================
+import re
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
-import plotly.express as px
 import pandas as pd
 import numpy as np
 import base64, os
 import holidays as hol
 from datetime import datetime
 from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+_VER_ST = tuple(int(p) for p in re.findall(r"\d+", st.__version__)[:2])
 
 # ============================================================
 # 1. KONFIGURASI HALAMAN
@@ -19,207 +23,277 @@ st.set_page_config(
     page_title="Dashboard Gangguan Kabel SR",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # ============================================================
 # 2. PALET WARNA
 # ============================================================
-TEXT_DARK = "#0F172A"
-TEXT_GRAY = "#64748B"
-NAV_ACTIVE = "#E11D48" # Merah elegan
-BIRU = "#6366F1"
-TOSKA = "#8B5CF6"
-HIJAU = "#10B981"
-MERAH = "#EF4444"
+TEXT_MAIN = "#F1F5F9"
+TEXT_GRAY = "#94A3B8"
+VIOLET = "#8B5CF6"
+INDIGO = "#6366F1"
+CYAN = "#22D3EE"
+PINK = "#F472B6"
+ORANGE = "#FB923C"
+HIJAU = "#34D399"
+MERAH = "#F87171"
+FONT_PLOT = "Plus Jakarta Sans, Segoe UI, sans-serif"
 
 # ============================================================
 # 3. CSS KUSTOM
 # ============================================================
-st.markdown(f"""
+CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0');
 
-html, body, [class*="css"] {{ font-family:'Plus Jakarta Sans', sans-serif; }}
-span[data-testid="stIconMaterial"] {{ font-family:'Material Symbols Rounded' !important; }}
+:root { --violet:#8B5CF6; --indigo:#6366F1; --cyan:#22D3EE; --pink:#F472B6; --text:#F1F5F9; --muted:#94A3B8; }
 
-/* Latar Belakang Gradasi Awan */
-.stApp {{
-    background: linear-gradient(135deg, #E0E7FF 0%, #F3F4F6 50%, #ECFDF5 100%);
-}}
+html, body, [class*="css"] { font-family:'Plus Jakarta Sans', sans-serif; }
 
-section[data-testid="stSidebar"] {{ display: none !important; }}
-#MainMenu, footer, header {{ visibility:hidden; }}
-[data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {{ display:none !important; }}
+/* ---------- Latar futuristik: gradasi neon + grid ---------- */
+.stApp {
+    background:
+        linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px),
+        radial-gradient(900px 600px at 14% -10%, rgba(139,92,246,.30), transparent 60%),
+        radial-gradient(800px 560px at 100% 0%, rgba(34,211,238,.16), transparent 55%),
+        radial-gradient(700px 500px at 62% 112%, rgba(244,114,182,.13), transparent 60%),
+        #060A18;
+    background-size: 46px 46px, 46px 46px, auto, auto, auto, auto;
+    background-attachment: fixed;
+    color: #E2E8F0;
+}
+#MainMenu, footer, header[data-testid="stHeader"] { visibility:hidden; height:0; }
+[data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"],
+[data-testid="stSidebarNav"], [data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapsedControl"], [data-testid="collapsedControl"] { display:none !important; }
 
-/* Bungkus Konten Utama (Floating Window) */
-.block-container {{
-    background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 32px;
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 0 24px 48px -12px rgba(0,0,0,0.1);
-    padding: 2rem 3rem !important;
-    margin: 2rem auto !important;
-    max-width: 1500px; /* Diperlebar agar muat banyak menu */
-}}
+.block-container { padding: 1.6rem 2.4rem 2.5rem 2.4rem !important; max-width: 1500px; }
 
-/* ---------- NAVBAR PILL (Diperlebar & Rapi) ---------- */
-[data-testid="stHorizontalBlock"]:has(.nav-anchor) {{
-    background: #FFFFFF;
-    border-radius: 999px;
-    padding: 8px 24px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
-    align-items: center;
-    margin-bottom: 32px;
-}}
+h1, h2, h3, h4 { color: var(--text) !important; }
+.stMarkdown, .stMarkdown p, .stMarkdown li, [data-testid="stCaptionContainer"],
+[data-testid="stWidgetLabel"] p, label { color: #CBD5E1 !important; }
 
-/* Tombol Navbar */
-[data-testid="stHorizontalBlock"]:has(.nav-anchor) button {{
-    border-radius: 999px !important;
-    height: 42px !important;
-    min-height: 42px !important;
-    border: 1px solid rgba(0,0,0,0.06) !important;
-    padding: 0 10px !important;
-    transition: all 0.2s ease;
-    width: 100% !important;
-    white-space: nowrap !important;
-}}
-[data-testid="stHorizontalBlock"]:has(.nav-anchor) button p {{
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    margin: 0 !important;
-}}
-[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="secondary"] {{
-    background: transparent !important;
-    color: {TEXT_GRAY} !important;
-}}
-[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="secondary"]:hover {{
-    background: #F3F4F6 !important;
-    color: {TEXT_DARK} !important;
-}}
-[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"] {{
-    background: {NAV_ACTIVE} !important;
-    border-color: {NAV_ACTIVE} !important;
-    color: #FFFFFF !important;
-}}
-[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"] p {{
-    color: #FFFFFF !important;
-}}
+@keyframes fadeUp { from { opacity:0; transform: translateY(18px); } to { opacity:1; transform:none; } }
+@keyframes sweep { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(52,211,153,.7); } 70% { box-shadow:0 0 0 9px rgba(52,211,153,0); } 100% { box-shadow:0 0 0 0 rgba(52,211,153,0); } }
+@keyframes glowmove { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
 
-/* Dropdown Selectbox di Navbar */
-[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-baseweb="select"] > div {{
-    background: #F9FAFB !important;
-    border: 1px solid rgba(0,0,0,0.08) !important;
-    border-radius: 999px !important;
-    min-height: 42px !important;
-    height: 42px !important;
-    display: flex; align-items: center;
-}}
-[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-baseweb="select"] * {{
-    color: {TEXT_DARK} !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
-}}
+/* ══════════ SIDEBAR KARTU ══════════ */
+section[data-testid="stSidebar"] {
+    width: 280px !important; min-width: 280px !important;
+    background: transparent !important; border-right: none !important;
+}
+section[data-testid="stSidebar"] > div:first-child {
+    background: linear-gradient(180deg, rgba(20,26,56,.82), rgba(10,14,34,.86));
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    margin: 14px 0 14px 14px; width: calc(100% - 14px) !important;
+    height: calc(100vh - 28px) !important;
+    border-radius: 26px; border: 1px solid rgba(255,255,255,.09);
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.7), 0 0 40px -12px rgba(139,92,246,.35);
+    padding-top: 0 !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarContent"] { overflow-x: hidden; }
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding: 1.2rem 1rem 1rem 1rem !important; }
+section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 6px; }
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
+    background: none !important; border: none !important; box-shadow: none !important;
+    padding: 0 !important; animation: none !important; backdrop-filter: none !important;
+}
 
-/* ---------- KPI CARD (Persis Screenshot) ---------- */
-[data-testid="stMetric"] {{
-    background: #FFFFFF;
-    border: 1px solid rgba(0,0,0,0.04);
-    border-radius: 24px;
-    padding: 24px;
-    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.01);
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}}
-[data-testid="stMetric"]:hover {{
-    transform: translateY(-5px);
-    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1);
-}}
-/* Ikon di Pojok Kanan Atas */
-[data-testid="stMetric"]::after {{
-    content: 'insights';
-    font-family: 'Material Symbols Rounded';
-    position: absolute;
-    top: 24px; right: 24px;
-    font-size: 22px;
-    color: {BIRU};
-    background: rgba(99, 102, 241, 0.1);
-    padding: 10px;
-    border-radius: 50%;
-}}
-[data-testid="column"]:nth-of-type(2) [data-testid="stMetric"]::after {{ content: 'trending_up'; color: {TOSKA}; background: rgba(139, 92, 246, 0.1); }}
-[data-testid="column"]:nth-of-type(3) [data-testid="stMetric"]::after {{ content: 'check_circle'; color: {HIJAU}; background: rgba(16, 185, 129, 0.1); }}
-[data-testid="column"]:nth-of-type(4) [data-testid="stMetric"]::after {{ content: 'calendar_month'; color: {MERAH}; background: rgba(239, 68, 68, 0.1); }}
+.brand-wide { background:#FFFFFF; border-radius:16px; padding:10px 14px; display:flex; align-items:center;
+              justify-content:center; box-shadow:0 10px 30px -12px rgba(139,92,246,.6); }
+.brand-wide img { height:38px; object-fit:contain; max-width:100%; }
+.brand-text { display:flex; align-items:center; gap:12px; padding:2px 4px; }
+.brand-logo { width:44px; height:44px; border-radius:14px; flex-shrink:0; font-size:22px;
+              background:linear-gradient(135deg,#8B5CF6,#22D3EE); display:flex; align-items:center; justify-content:center;
+              box-shadow:0 10px 24px -8px rgba(139,92,246,.9); }
+.brand-title { font-weight:800; font-size:16px; color:#F8FAFC; letter-spacing:-.3px; margin:14px 4px 0 4px; line-height:1.25; }
+.brand-sub { font-size:11px; color:#94A3B8; font-weight:600; margin:2px 4px 14px 4px; }
 
-[data-testid="stMetricLabel"] p {{
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    color: {TEXT_GRAY} !important;
-    letter-spacing: 0.3px;
-}}
-[data-testid="stMetricValue"] {{
-    font-size: 42px !important;
-    font-weight: 800 !important;
-    color: {TEXT_DARK} !important;
-    letter-spacing: -1.5px;
-    margin-top: 12px;
-    margin-bottom: 4px;
-}}
-[data-testid="stMetricDelta"] {{ margin-top: 10px; }}
-[data-testid="stMetricDelta"] * {{
-    color: {TEXT_DARK} !important;
-    font-size: 12px !important;
-    font-weight: 600;
-    background: #F1F5F9 !important;
-    padding: 6px 12px;
-    border-radius: 99px;
-    display: inline-block;
-}}
-[data-testid="stMetricDelta"] svg {{ display: none; }}
+section[data-testid="stSidebar"] [data-baseweb="input"],
+section[data-testid="stSidebar"] [data-baseweb="base-input"] {
+    background: rgba(255,255,255,.05) !important; border: 1px solid rgba(255,255,255,.08) !important;
+    border-radius: 14px !important;
+}
+section[data-testid="stSidebar"] input {
+    font-size:13px !important; font-weight:600 !important; color:#E2E8F0 !important; padding:10px 12px !important;
+}
+section[data-testid="stSidebar"] [data-testid="stTextInput"] { margin-bottom: 8px; }
+.menu-label { font-size:11px; font-weight:700; color:#64748B; letter-spacing:.8px; text-transform:uppercase; margin:8px 6px 4px 6px; }
 
-/* ---------- Grafik & Tabel ---------- */
-[data-testid="stPlotlyChart"], [data-testid="stDataFrame"] {{
-    background: #FFFFFF;
-    border-radius: 24px;
-    padding: 16px;
-    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
-    border: 1px solid rgba(0,0,0,0.02);
-}}
+section[data-testid="stSidebar"] .stButton { width:100%; }
+section[data-testid="stSidebar"] .stButton > button {
+    width:100% !important; min-height:44px; height:auto;
+    justify-content:flex-start !important; text-align:left; gap:12px; padding:10px 14px !important;
+    border:none !important; border-radius:14px !important;
+    background:transparent !important; color:#94A3B8 !important; box-shadow:none !important;
+    transition: all .25s ease;
+}
+section[data-testid="stSidebar"] .stButton > button > div { justify-content:flex-start !important; gap:12px; width:100%; }
+section[data-testid="stSidebar"] .stButton > button p {
+    font-size:14px !important; font-weight:600 !important; color:inherit !important; margin:0; text-align:left;
+}
+section[data-testid="stSidebar"] .stButton > button [data-testid="stIconMaterial"] { font-size:21px !important; color:inherit !important; }
+section[data-testid="stSidebar"] .stButton > button:hover {
+    background: rgba(139,92,246,.12) !important; color:#E9D5FF !important; transform: translateX(3px);
+}
+section[data-testid="stSidebar"] .stButton > button[kind="primary"],
+section[data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg,#8B5CF6,#6366F1) !important; color:#FFFFFF !important;
+    box-shadow: 0 12px 28px -10px rgba(139,92,246,.95), 0 0 0 1px rgba(255,255,255,.12) inset !important;
+}
 
-/* ---------- Judul Section ---------- */
-.judul-seksi {{
-    font-size: 18px; font-weight: 700; color: {TEXT_DARK};
-    margin-bottom: 4px;
-    letter-spacing: -0.3px;
-}}
-.sub-seksi {{
-    font-size: 12px; color: {TEXT_GRAY}; font-weight: 500;
-    margin-bottom: 16px;
-}}
+.status { margin-top:16px; padding:14px; border-radius:16px; background:rgba(255,255,255,.045);
+          border:1px solid rgba(255,255,255,.08); }
+.status .row { display:flex; align-items:center; gap:8px; }
+.pulse { width:9px; height:9px; border-radius:50%; background:#34D399; display:inline-block; animation:pulse 2s infinite; }
+.status .lbl { font-size:11px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:.6px; }
+.status .val { font-size:15px; font-weight:800; color:#F8FAFC; margin-top:6px; }
+.status .sub { font-size:11px; color:#64748B; font-weight:600; margin-top:2px; }
 
-/* ---------- Tombol & Input Umum ---------- */
-.main button {{
-    border-radius: 999px !important;
-    font-weight: 600 !important;
-    border: none !important;
-    height: 40px;
-}}
-.main button[kind="secondary"] {{
-    background: #FFFFFF !important;
-    color: {TEXT_DARK} !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
-}}
-.main [data-baseweb="select"] > div {{
-    background: #FFFFFF !important;
-    border: 1px solid rgba(0,0,0,0.05) !important;
-    border-radius: 12px !important;
-}}
+/* ══════════ KARTU KACA ══════════ */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.025)) !important;
+    border: 1px solid rgba(255,255,255,.09) !important;
+    border-radius: 24px !important;
+    padding: 1.1rem 1.3rem !important;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 20px 50px -24px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.06) !important;
+    animation: fadeUp .7s cubic-bezier(.2,.8,.2,1) both;
+    transition: border-color .3s ease, box-shadow .3s ease;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    border-color: rgba(139,92,246,.45) !important;
+    box-shadow: 0 20px 50px -24px rgba(0,0,0,.75), 0 0 34px -8px rgba(139,92,246,.45) !important;
+}
+.glass {
+    background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.025));
+    border: 1px solid rgba(255,255,255,.09); border-radius: 22px; padding: 22px 24px;
+    backdrop-filter: blur(18px); animation: fadeUp .7s cubic-bezier(.2,.8,.2,1) both;
+    box-shadow: 0 20px 50px -24px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.glass-title { color:#F8FAFC; font-size:14px; font-weight:700; margin-bottom:8px; }
+.glass-text { color:#94A3B8; font-size:12.5px; line-height:1.8; font-weight:500; }
+.note { border-radius:16px; padding:16px 20px; }
+.note.green { background:rgba(52,211,153,.10); border:1px solid rgba(52,211,153,.30); }
+.note.green .t { color:#6EE7B7; font-size:13px; font-weight:700; }
+.note.green .d { color:#A7F3D0; font-size:11.5px; line-height:1.6; margin-top:4px; font-weight:500; }
+.note.amber { background:rgba(251,146,60,.10); border:1px solid rgba(251,146,60,.30); }
+.note.amber .t { color:#FDBA74; font-size:12px; font-weight:700; }
+.note.amber .d { color:#FED7AA; font-size:11.5px; line-height:1.6; margin-top:4px; font-weight:500; }
+
+/* ══════════ KPI ══════════ */
+[data-testid="stMetric"] {
+    background: linear-gradient(160deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
+    border: 1px solid rgba(255,255,255,.09); border-radius: 22px; padding: 22px 22px 18px 22px;
+    position: relative; overflow: hidden; backdrop-filter: blur(16px);
+    box-shadow: 0 20px 50px -24px rgba(0,0,0,.75);
+    animation: fadeUp .7s cubic-bezier(.2,.8,.2,1) both;
+    transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+}
+[data-testid="stMetric"]:hover {
+    transform: translateY(-5px); border-color: rgba(139,92,246,.5);
+    box-shadow: 0 24px 50px -20px rgba(0,0,0,.8), 0 0 36px -8px rgba(139,92,246,.55);
+}
+[data-testid="stMetric"]::before {
+    content:""; position:absolute; left:0; top:0; width:100%; height:2px; opacity:.9;
+    background: linear-gradient(90deg, transparent, #8B5CF6, #22D3EE, transparent);
+    background-size: 200% 100%; animation: sweep 4s linear infinite;
+}
+[data-testid="stMetric"]::after {
+    content:'insights'; font-family:'Material Symbols Rounded'; position:absolute; top:20px; right:20px;
+    font-size:21px; color:#A78BFA; background:rgba(139,92,246,.16); padding:9px; border-radius:50%;
+    box-shadow: 0 0 20px -4px rgba(139,92,246,.7);
+}
+[data-testid="column"]:nth-of-type(2) [data-testid="stMetric"]::after,
+[data-testid="stColumn"]:nth-of-type(2) [data-testid="stMetric"]::after { content:'trending_up'; color:#22D3EE; background:rgba(34,211,238,.14); box-shadow:0 0 20px -4px rgba(34,211,238,.7); }
+[data-testid="column"]:nth-of-type(3) [data-testid="stMetric"]::after,
+[data-testid="stColumn"]:nth-of-type(3) [data-testid="stMetric"]::after { content:'check_circle'; color:#34D399; background:rgba(52,211,153,.14); box-shadow:0 0 20px -4px rgba(52,211,153,.7); }
+[data-testid="column"]:nth-of-type(4) [data-testid="stMetric"]::after,
+[data-testid="stColumn"]:nth-of-type(4) [data-testid="stMetric"]::after { content:'calendar_month'; color:#F472B6; background:rgba(244,114,182,.14); box-shadow:0 0 20px -4px rgba(244,114,182,.7); }
+
+[data-testid="stMetricLabel"] p { font-size:12px !important; font-weight:700 !important; color:#94A3B8 !important; letter-spacing:.8px; }
+[data-testid="stMetricValue"] {
+    font-size: 40px !important; font-weight: 800 !important; letter-spacing: -1.5px; margin: 10px 0 4px 0;
+    background: linear-gradient(90deg, #FFFFFF, #C4B5FD); -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent !important;
+}
+[data-testid="stMetricDelta"] { margin-top: 10px; }
+[data-testid="stMetricDelta"] * {
+    color:#C4B5FD !important; font-size:12px !important; font-weight:600;
+    background:rgba(139,92,246,.14) !important; padding:5px 12px; border-radius:99px; display:inline-block;
+}
+[data-testid="stMetricDelta"] svg { display:none; }
+
+/* ══════════ JUDUL ══════════ */
+.hero-title {
+    font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1.2; margin-top: 6px;
+    background: linear-gradient(90deg, #FFFFFF 0%, #C4B5FD 45%, #22D3EE 100%); background-size: 200% 100%;
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    animation: glowmove 8s linear infinite;
+}
+.hero-sub { color:#94A3B8; font-size:13px; margin-top:6px; font-weight:500; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.chip { display:inline-flex; align-items:center; gap:6px; background:rgba(52,211,153,.12); color:#6EE7B7;
+        border:1px solid rgba(52,211,153,.3); border-radius:99px; padding:3px 10px; font-size:10.5px; font-weight:700; letter-spacing:.6px; }
+.judul-seksi { font-size:17px; font-weight:700; color:#F8FAFC; margin-bottom:2px; letter-spacing:-.3px; }
+.sub-seksi { font-size:12px; color:#94A3B8; font-weight:500; margin-bottom:10px; }
+
+/* ══════════ TABEL ══════════ */
+.tbl-wrap { border-radius:18px; overflow:auto; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.025); }
+.tbl { width:100%; border-collapse:collapse; font-size:12.5px; }
+.tbl th { position:sticky; top:0; background:#0E1430; color:#94A3B8; text-transform:uppercase; font-size:10.5px;
+          letter-spacing:.7px; font-weight:700; text-align:left; padding:12px 16px; }
+.tbl td { padding:11px 16px; color:#E2E8F0; border-top:1px solid rgba(255,255,255,.05); font-weight:500; }
+.tbl tbody tr:hover { background:rgba(139,92,246,.09); }
+.tbl td.good { background:rgba(52,211,153,.15); color:#6EE7B7; font-weight:800; }
+.tbl td.bad { color:#F87171; font-weight:700; }
+
+/* ══════════ BAR SUMBER (animasi) ══════════ */
+.src-track { background:rgba(255,255,255,.07); border-radius:8px; height:8px; overflow:hidden; }
+.src-fill { height:8px; border-radius:8px; background:linear-gradient(90deg,#8B5CF6,#22D3EE);
+            box-shadow:0 0 14px rgba(34,211,238,.55); transform-origin:left;
+            animation: growX 1.2s cubic-bezier(.2,.8,.2,1) both; }
+
+/* ══════════ KONTROL ══════════ */
+[data-testid="stMain"] .stButton > button, [data-testid="stMain"] .stDownloadButton > button,
+section.main .stButton > button, section.main .stDownloadButton > button {
+    width:100%; height:42px; border-radius:999px; font-weight:700; font-size:13px;
+    border:1px solid rgba(255,255,255,.13); background:rgba(255,255,255,.05); color:#E2E8F0; transition:all .25s ease;
+}
+[data-testid="stMain"] .stButton > button:hover, [data-testid="stMain"] .stDownloadButton > button:hover,
+section.main .stButton > button:hover, section.main .stDownloadButton > button:hover {
+    border-color:rgba(139,92,246,.7); color:#FFFFFF; box-shadow:0 0 26px -6px rgba(139,92,246,.8);
+}
+[data-testid="stMain"] .stButton > button[kind="primary"], [data-testid="stMain"] .stButton > button[data-testid="stBaseButton-primary"],
+section.main .stButton > button[kind="primary"] {
+    background:linear-gradient(135deg,#8B5CF6,#6366F1); border:none; color:#FFFFFF;
+    box-shadow:0 12px 28px -10px rgba(139,92,246,.95);
+}
+[data-baseweb="select"] > div {
+    background: rgba(255,255,255,.05) !important; border:1px solid rgba(255,255,255,.12) !important;
+    border-radius: 14px !important; min-height: 42px;
+}
+[data-baseweb="select"] span, [data-baseweb="select"] div, [data-baseweb="select"] input { color:#E2E8F0 !important; font-size:13px; font-weight:600; }
+[data-baseweb="select"] svg { fill:#94A3B8 !important; }
+div[data-baseweb="popover"] ul, div[data-baseweb="menu"] { background:#0E1430 !important; border-radius:14px; }
+li[role="option"] { color:#E2E8F0 !important; font-size:13px; }
+li[role="option"]:hover { background:rgba(139,92,246,.2) !important; }
+[data-testid="stFileUploaderDropzone"] { background:rgba(255,255,255,.03); border:1.5px dashed rgba(139,92,246,.45); border-radius:18px; }
+[data-testid="stFileUploaderDropzone"] * { color:#CBD5E1 !important; }
+[data-testid="stExpander"] { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:16px; }
+[data-testid="stExpander"] summary, [data-testid="stExpander"] summary p { color:#E2E8F0 !important; }
+[data-testid="stAlert"] { background:rgba(255,255,255,.05) !important; border:1px solid rgba(255,255,255,.1); border-radius:16px; }
+[data-testid="stAlert"] * { color:#E2E8F0 !important; }
+[data-testid="stSlider"] *, [data-testid="stSelectSlider"] * { color:#CBD5E1 !important; }
+div[data-baseweb="slider"] div[role="slider"] { background:#8B5CF6 !important; box-shadow:0 0 14px rgba(139,92,246,.9); }
+iframe { border:none; background:transparent; }
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(CSS, unsafe_allow_html=True)
 
 # ============================================================
 # 4. PEMUATAN DATA
@@ -269,207 +343,329 @@ if 'ts_baru_terakhir' not in st.session_state: st.session_state.ts_baru_terakhir
 if 'info_model_baru' not in st.session_state: st.session_state.info_model_baru = None
 
 # ============================================================
-# 6. NAVBAR HORIZONTAL (Rasio Lebar Menu Diperbesar)
+# 6. SIDEBAR KARTU
 # ============================================================
-st.markdown('<div class="nav-anchor"></div>', unsafe_allow_html=True)
+MENU = ["Ringkasan", "Tren Harian", "Peramalan", "Perbarui & Ramalkan",
+        "Analisis Penyebab", "Perbandingan Model", "Akurasi Model"]
+IKON_MATERIAL = {"Ringkasan": ":material/dashboard:", "Tren Harian": ":material/show_chart:",
+                 "Peramalan": ":material/query_stats:", "Perbarui & Ramalkan": ":material/published_with_changes:",
+                 "Analisis Penyebab": ":material/pie_chart:", "Perbandingan Model": ":material/compare_arrows:",
+                 "Akurasi Model": ":material/verified:"}
+IKON_EMOJI = {"Ringkasan": "🏠", "Tren Harian": "📈", "Peramalan": "🔮", "Perbarui & Ramalkan": "🔄",
+              "Analisis Penyebab": "🥧", "Perbandingan Model": "⚖️", "Akurasi Model": "✅"}
 
-# Rasio: Logo (1.5), Menu (8.5), Filter (2)
-nav_logo, nav_menu, nav_filter = st.columns([1.5, 8.5, 2], gap="small")
+def _pindah_halaman(nama):
+    st.session_state.halaman = nama
 
-with nav_logo:
-    if os.path.exists('logo_haleyora.png'):
-        with open('logo_haleyora.png', 'rb') as f:
-            b64 = base64.b64encode(f.read()).decode()
-        st.markdown(
-            f'<div style="display:flex;align-items:center;height:100%;padding-left:12px;">'
-            f'<img src="data:image/png;base64,{b64}" style="height:52px; object-fit:contain;">' # LOGO DIPERBESAR
-            f'</div>', unsafe_allow_html=True)
-    else:
-        st.markdown(
-            '<div style="display:flex;align-items:center;height:100%;padding-left:12px;">'
-            '<span style="color:#0F172A;font-size:20px;font-weight:800;letter-spacing:-0.5px;">'
-            'haleyora<span style="color:#F59E0B;">power</span></span></div>', 
-            unsafe_allow_html=True)
+def _muat_ulang():
+    st.cache_data.clear()
 
-with nav_menu:
-    sub_cols = st.columns(7)
-    menu_list = ["Ringkasan", "Tren Harian", "Peramalan", "Perbarui & Ramalkan", 
-                 "Analisis Penyebab", "Perbandingan Model", "Akurasi Model"]
-    for i, nama in enumerate(menu_list):
-        aktif = st.session_state.halaman == nama
-        with sub_cols[i]:
-            # Label dipersingkat agar muat, tapi state tetap menggunakan nama asli
-            label_tampil = nama.replace("Perbarui & Ramalkan", "Perbarui").replace("Perbandingan Model", "Perbandingan").replace("Analisis Penyebab", "Penyebab").replace("Akurasi Model", "Akurasi")
-            if st.button(label_tampil, key=f"nav_{nama}", use_container_width=True,
-                         type="primary" if aktif else "secondary"):
-                st.session_state.halaman = nama
-                st.rerun()
+def render_sidebar():
+    pakai_material = _VER_ST >= (1, 37)
+    aktif = st.session_state.halaman
+    with st.sidebar:
+        if os.path.exists('logo_haleyora.png'):
+            with open('logo_haleyora.png', 'rb') as f:
+                b64 = base64.b64encode(f.read()).decode()
+            st.markdown(f'<div class="brand-wide"><img src="data:image/png;base64,{b64}"></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="brand-text"><div class="brand-logo">⚡</div>'
+                        '<div style="color:#F8FAFC;font-size:19px;font-weight:800;letter-spacing:-.5px;">'
+                        'haleyora<span style="color:#FB923C;">power</span></div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="brand-title">Forecast Gangguan Kabel SR</div>'
+                    '<div class="brand-sub">PLN UP3 Serpong</div>', unsafe_allow_html=True)
 
-with nav_filter:
-    f1, f2 = st.columns([2, 1])
-    with f1:
-        opsi = ['Semua'] + list(pd.to_datetime(hist.iloc[:, 0]).dt.strftime('%b %Y').unique())
-        pilih_bulan = st.selectbox("p", opsi, label_visibility="collapsed")
-    with f2:
-        if st.button("🔄", key="reload", help="Muat Ulang Data", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+        kata = st.text_input("Cari", key="cari_menu", placeholder="Cari menu...", label_visibility="collapsed")
+        st.markdown('<div class="menu-label">Menu</div>', unsafe_allow_html=True)
+
+        tampil_menu = [m for m in MENU if kata.strip().lower() in m.lower()] if kata.strip() else MENU
+        for nama in tampil_menu:
+            ikon = IKON_MATERIAL[nama] if pakai_material else IKON_EMOJI[nama]
+            st.button(nama, icon=ikon, key=f"nav_{nama}",
+                      type="primary" if nama == aktif else "secondary",
+                      on_click=_pindah_halaman, args=(nama,))
+        if not tampil_menu:
+            st.caption("Menu tidak ditemukan.")
+
+        st.markdown(f'<div class="status"><div class="row"><span class="pulse"></span>'
+                    f'<span class="lbl">Model aktif</span></div><div class="val">ARIMA(1,1,1)</div>'
+                    f'<div class="sub">{len(hist):,} hari data historis</div></div>'.replace(",", "."),
+                    unsafe_allow_html=True)
+        st.button("Muat Ulang Data", icon=(":material/refresh:" if pakai_material else "🔄"),
+                  key="reload", on_click=_muat_ulang)
+
+render_sidebar()
 
 # ============================================================
-# 7. HEADER & KONTEN
+# 7. HEADER & FILTER
 # ============================================================
+kiri, k_filter, kanan = st.columns([6, 2.2, 2.2])
+with kiri:
+    st.markdown(
+        '<div class="hero-title">Dashboard Peramalan Gangguan Kabel SR</div>'
+        '<div class="hero-sub">PT. Haleyora Power Serpong &nbsp;·&nbsp; Metode ARIMA &amp; SARIMAX '
+        '<span class="chip"><span class="pulse"></span>LIVE</span></div>', unsafe_allow_html=True)
+with k_filter:
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    opsi = ['Semua'] + list(pd.to_datetime(hist.iloc[:, 0]).dt.strftime('%b %Y').unique())
+    pilih_bulan = st.selectbox("p", opsi, label_visibility="collapsed")
+
 hist_f = hist.copy()
 hist_f.iloc[:, 0] = pd.to_datetime(hist_f.iloc[:, 0])
 if pilih_bulan != 'Semua':
     hist_f = hist_f[hist_f.iloc[:, 0].dt.strftime('%b %Y') == pilih_bulan]
-
 kol_tgl, kol_val = hist_f.columns[0], hist_f.columns[1]
 
-kiri, kanan = st.columns([7, 3])
-with kiri:
-    st.markdown(
-        f'<div style="color:{TEXT_DARK};font-size:28px;font-weight:800;'
-        f'line-height:1.2;letter-spacing:-.8px;margin-top:10px;">'
-        f'Dashboard Peramalan Gangguan Kabel SR</div>'
-        f'<div style="color:{TEXT_GRAY};font-size:13px;margin-top:4px;font-weight:500;">'
-        f'PT. Haleyora Power Serpong &nbsp;·&nbsp; Metode ARIMA &amp; SARIMAX'
-        f'</div>', unsafe_allow_html=True)
 with kanan:
-    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     st.download_button(
         "⬇ Unduh Data CSV", key="unduh",
         data=hist_f.to_csv(index=False).encode('utf-8'),
         file_name=f"gangguan_SR_{datetime.now():%Y%m%d}.csv",
-        mime="text/csv", use_container_width=True)
+        mime="text/csv")
 
-st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
 
 # ============================================================
-# 8. HELPER FUNCTIONS
+# 8. HELPER: TATA LETAK, ANIMASI, TABEL
 # ============================================================
 TRANSPARAN = 'rgba(0,0,0,0)'
+
 def tata(t=280):
     return dict(
+        template='plotly_dark',
         plot_bgcolor=TRANSPARAN, paper_bgcolor=TRANSPARAN,
-        font=dict(color=TEXT_GRAY, size=11, family='Plus Jakarta Sans'),
+        font=dict(color=TEXT_GRAY, size=11, family=FONT_PLOT),
         height=t, margin=dict(l=10, r=10, t=10, b=30),
-        xaxis=dict(showgrid=False, tickfont=dict(size=11, color=TEXT_GRAY), showline=False),
-        yaxis=dict(gridcolor='rgba(0,0,0,0.04)', tickfont=dict(size=11, color=TEXT_GRAY), zeroline=False),
+        xaxis=dict(showgrid=False, tickfont=dict(size=11, color=TEXT_GRAY), showline=False, zeroline=False),
+        yaxis=dict(gridcolor='rgba(255,255,255,0.06)', tickfont=dict(size=11, color=TEXT_GRAY), zeroline=False),
         legend=dict(orientation='h', yanchor='bottom', y=1.05, x=0, font=dict(size=11, color=TEXT_GRAY)),
-        hoverlabel=dict(bgcolor=TEXT_DARK, font=dict(color='white', size=12))
+        hoverlabel=dict(bgcolor='#0B1020', bordercolor=VIOLET, font=dict(color='#F8FAFC', size=12))
     )
 
 def judul(teks, sub=""):
     st.markdown(f'<div class="judul-seksi">{teks}</div><div class="sub-seksi">{sub}</div>', unsafe_allow_html=True)
 
+def spasi(px=24):
+    st.markdown(f"<div style='height:{px}px'></div>", unsafe_allow_html=True)
+
+def tampil(fig, durasi=28, redraw=False):
+    """Menampilkan grafik Plotly beranimasi (auto-play saat dimuat)."""
+    tinggi = int(fig.layout.height or 300)
+    html = fig.to_html(
+        include_plotlyjs='cdn', full_html=True, auto_play=True,
+        config={'displayModeBar': False, 'responsive': True},
+        animation_opts={'frame': {'duration': durasi, 'redraw': redraw},
+                        'transition': {'duration': 0}, 'mode': 'immediate', 'fromcurrent': True})
+    html = html.replace(
+        '<head>',
+        '<head><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">'
+        '<style>html,body{margin:0;padding:0;background:transparent;overflow:hidden}</style>', 1)
+    components.html(html, height=tinggi + 6)
+
+def anim_garis(fig, groups, n_frames=46):
+    """Garis 'tergambar' bertahap. groups = urutan grup trace yang digambar bergantian."""
+    lens = [len(fig.data[g[0]].x) for g in groups]
+    total = float(sum(lens)) or 1.0
+    xs = [fig.data[i].x for i in range(len(fig.data))]
+    ys = [fig.data[i].y for i in range(len(fig.data))]
+    frames = []
+    for s in range(1, n_frames + 1):
+        pos = total * s / n_frames
+        used, idx, dat = 0.0, [], []
+        for g, L in zip(groups, lens):
+            k = int(round(min(max(pos - used, 0), L)))
+            used += L
+            for i in g:
+                idx.append(i)
+                dat.append(go.Scatter(x=xs[i][:k], y=ys[i][:k]))
+        frames.append(go.Frame(data=dat, traces=idx, name=str(s)))
+    for i in range(len(fig.data)):
+        fig.data[i].x = xs[i][:0]
+        fig.data[i].y = ys[i][:0]
+    fig.frames = frames
+    return fig
+
+def anim_bar(fig, n_frames=26):
+    """Batang 'tumbuh' dari nol dengan easing."""
+    yf = [float(v) for v in fig.data[0].y]
+    frames = [go.Frame(data=[go.Bar(y=[v * (1 - (1 - s / n_frames) ** 3) for v in yf])],
+                       traces=[0], name=str(s)) for s in range(1, n_frames + 1)]
+    fig.data[0].y = [0] * len(yf)
+    fig.frames = frames
+    return fig
+
+def anim_donat(fig, nilai, per_slice=7):
+    """Irisan donat muncul satu per satu."""
+    k = len(nilai)
+    frames = []
+    for s in range(1, k * per_slice + 1):
+        vals = [v * min(max((s - j * per_slice) / per_slice, 0), 1) for j, v in enumerate(nilai)]
+        frames.append(go.Frame(data=[go.Pie(values=vals)], traces=[0], name=str(s)))
+    fig.data[0].values = [0] * k
+    fig.frames = frames
+    return fig
+
+def tabel_html(df, fmt=None, tinggi=None, sorot=None):
+    """Tabel bertema gelap (menggantikan st.dataframe). sorot(kolom, nilai, kolom_series) -> kelas CSS."""
+    fmt = fmt or {}
+    th = ''.join(f'<th>{c}</th>' for c in df.columns)
+    baris = ''
+    for _, r in df.iterrows():
+        td = ''
+        for c in df.columns:
+            v = r[c]
+            if isinstance(v, (float, np.floating)) and pd.isna(v):
+                s = '-'
+            else:
+                try: s = fmt[c].format(v) if c in fmt else str(v)
+                except Exception: s = str(v)
+            kls = sorot(c, v) if sorot else ''
+            td += f'<td class="{kls}">{s}</td>'
+        baris += f'<tr>{td}</tr>'
+    gaya = f'max-height:{tinggi}px;' if tinggi else ''
+    st.markdown(f'<div class="tbl-wrap" style="{gaya}"><table class="tbl"><thead><tr>{th}</tr></thead>'
+                f'<tbody>{baris}</tbody></table></div>', unsafe_allow_html=True)
+
 # ============================================================
-# 9. KPI CARDS (MODERN)
+# 9. KPI CARDS
 # ============================================================
 def kpi():
     k1, k2, k3, k4 = st.columns(4)
     total = f"{int(hist_f[kol_val].sum()):,}".replace(",", ".")
     baris_terbaik = metrik.loc[metrik['MASE'].idxmin()]
     mase = float(baris_terbaik['MASE'])
-
-    with k1:
-        st.metric("TOTAL GANGGUAN", total, "kasus tercatat ↗")
-    with k2:
-        st.metric("RATA-RATA HARIAN", f"{hist_f[kol_val].mean():.2f}".replace(".", ","), "gangguan / hari ↗")
-    with k3:
-        st.metric("AKURASI MASE", f"{mase:.3f}".replace(".", ","), "belum unggul dari naive")
-    with k4:
-        st.metric("PROYEKSI 30 HARI", f"{peramalan['Prediksi'].mean():.2f}".replace(".", ","), "kategori sedang ↗")
+    with k1: st.metric("TOTAL GANGGUAN", total, "kasus tercatat ↗")
+    with k2: st.metric("RATA-RATA HARIAN", f"{hist_f[kol_val].mean():.2f}".replace(".", ","), "gangguan / hari ↗")
+    with k3: st.metric("AKURASI MASE", f"{mase:.3f}".replace(".", ","), "belum unggul dari naive")
+    with k4: st.metric("PROYEKSI 30 HARI", f"{peramalan['Prediksi'].mean():.2f}".replace(".", ","), "kategori sedang ↗")
 
 # ============================================================
-# 10. FUNGSI GRAFIK
+# 10. FUNGSI GRAFIK (BERANIMASI)
 # ============================================================
 def g_tren(t=320):
     f = go.Figure()
     f.add_trace(go.Scatter(
         x=hist_f[kol_tgl], y=hist_f[kol_val], name='Aktual',
-        line=dict(color='#818CF8', width=3, shape='spline'),
-        fill='tozeroy', fillcolor='rgba(129, 140, 248, 0.1)'))
+        line=dict(color=CYAN, width=3, shape='spline'),
+        fill='tozeroy', fillcolor='rgba(34, 211, 238, 0.10)'))
     f.add_trace(go.Scatter(
         x=peramalan['Tanggal'], y=peramalan['Prediksi'], name='Prediksi',
-        line=dict(color='#F97316', width=3, dash='dot', shape='spline')))
-    f.update_layout(**tata(t))
-    return f
+        line=dict(color=ORANGE, width=3, dash='dot', shape='spline')))
+    L = tata(t)
+    try:
+        xmin = min(pd.to_datetime(hist_f[kol_tgl]).min(), pd.to_datetime(peramalan['Tanggal']).min())
+        xmax = max(pd.to_datetime(hist_f[kol_tgl]).max(), pd.to_datetime(peramalan['Tanggal']).max())
+        L['xaxis']['range'] = [str(xmin), str(xmax)]
+    except Exception:
+        pass
+    ymax = max(float(hist_f[kol_val].max()), float(peramalan['Prediksi'].max()))
+    L['yaxis']['range'] = [0, ymax * 1.15]
+    f.update_layout(**L)
+    return anim_garis(f, [[0], [1]])
 
 def g_penyebab(t=320):
     d = penyebab.head(5).copy()
     d['Lengkap'] = d['Penyebab'].astype(str)
     d['Penyebab'] = d['Lengkap'].apply(lambda x: x if len(x) <= 22 else x[:20] + '…')
-    f = px.pie(d, values='Jumlah', names='Penyebab', hole=.65, custom_data=['Lengkap'],
-               color_discrete_sequence=['#A78BFA', '#C4B5FD', '#DDD6FE', '#F3E8FF', '#F8FAFC'])
-    f.update_traces(textposition='inside', textinfo='percent', textfont=dict(size=11, color='white'), marker=dict(line=dict(color='#FFFFFF', width=3)))
-    f.update_layout(paper_bgcolor=TRANSPARAN, height=t, margin=dict(l=10, r=10, t=10, b=10),
-        font=dict(color=TEXT_GRAY, family='Plus Jakarta Sans'),
-        legend=dict(orientation='h', yanchor='top', y=-0.1, xanchor='center', x=0.5, font=dict(size=11, color=TEXT_GRAY)))
-    return f
+    nilai = [float(v) for v in d['Jumlah']]
+    tot = sum(nilai) or 1.0
+    teks = [f"{v / tot * 100:.0f}%" for v in nilai]
+    warna = [VIOLET, CYAN, PINK, ORANGE, HIJAU]
+    f = go.Figure(go.Pie(
+        labels=list(d['Penyebab']), values=nilai, hole=.68, sort=False,
+        text=teks, textinfo='text', textposition='inside',
+        textfont=dict(size=11, color='white', family=FONT_PLOT),
+        marker=dict(colors=warna, line=dict(color='#0B1020', width=3)),
+        customdata=list(d['Lengkap']),
+        hovertemplate='<b>%{customdata}</b><br>%{value} kasus<extra></extra>'))
+    f.update_layout(template='plotly_dark', paper_bgcolor=TRANSPARAN, plot_bgcolor=TRANSPARAN, height=t,
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    font=dict(color=TEXT_GRAY, family=FONT_PLOT),
+                    hoverlabel=dict(bgcolor='#0B1020', bordercolor=VIOLET, font=dict(color='#F8FAFC', size=12)),
+                    legend=dict(orientation='h', yanchor='top', y=-0.02, xanchor='center', x=0.5,
+                                font=dict(size=11, color=TEXT_GRAY)))
+    return anim_donat(f, nilai)
 
 def g_ramal(t=250):
     f = go.Figure()
-    f.add_trace(go.Scatter(x=peramalan['Tanggal'], y=peramalan['CI_Atas'], mode='lines', line=dict(color='rgba(0,0,0,0)'), showlegend=False))
-    f.add_trace(go.Scatter(x=peramalan['Tanggal'], y=peramalan['CI_Bawah'], fill='tonexty', mode='lines', fillcolor='rgba(167, 139, 250, 0.2)', line=dict(color='rgba(0,0,0,0)'), name='Interval 95%'))
-    f.add_trace(go.Scatter(x=peramalan['Tanggal'], y=peramalan['Prediksi'], name='Prediksi', line=dict(color='#A78BFA', width=3, shape='spline')))
+    f.add_trace(go.Scatter(x=peramalan['Tanggal'], y=peramalan['CI_Atas'], mode='lines',
+                           line=dict(color='rgba(0,0,0,0)'), showlegend=False))
+    f.add_trace(go.Scatter(x=peramalan['Tanggal'], y=peramalan['CI_Bawah'], fill='tonexty', mode='lines',
+                           fillcolor='rgba(139, 92, 246, 0.22)', line=dict(color='rgba(0,0,0,0)'), name='Interval 95%'))
+    f.add_trace(go.Scatter(x=peramalan['Tanggal'], y=peramalan['Prediksi'], name='Prediksi',
+                           line=dict(color='#A78BFA', width=3, shape='spline')))
     L = tata(t); L['yaxis']['range'] = [0, 55]; f.update_layout(**L)
-    return f
+    return anim_garis(f, [[0, 1, 2]])
 
 def g_bulan(t=300):
     h = hist.copy(); h.iloc[:, 0] = pd.to_datetime(h.iloc[:, 0]); h['Bulan'] = h.iloc[:, 0].dt.strftime('%b %Y')
     b = h.groupby('Bulan', sort=False)[h.columns[1]].sum().reset_index(); b.columns = ['Bulan', 'Jumlah']
     mx = b['Jumlah'].max()
-    warna = ['#6366F1' if i == len(b['Jumlah']) - 1 else '#C4B5FD' for i in range(len(b['Jumlah']))]
+    warna = [CYAN if i == len(b['Jumlah']) - 1 else '#7C6AF0' for i in range(len(b['Jumlah']))]
     teks = [f"{v:,}".replace(",", ".") for v in b['Jumlah']]
-    kw = dict(x=b['Bulan'], y=b['Jumlah'], text=teks, textposition='outside', textfont=dict(size=10, color=TEXT_DARK), cliponaxis=False)
+    kw = dict(x=list(b['Bulan']), y=[float(v) for v in b['Jumlah']], text=teks, textposition='outside',
+              textfont=dict(size=10, color=TEXT_MAIN), cliponaxis=False)
     try: f = go.Figure(go.Bar(**kw, marker=dict(color=warna, cornerradius=6)))
-    except: f = go.Figure(go.Bar(**kw, marker=dict(color=warna)))
+    except Exception: f = go.Figure(go.Bar(**kw, marker=dict(color=warna)))
     L = tata(t); L['xaxis'].update(tickangle=0); L['yaxis'].update(range=[0, mx * 1.2]); f.update_layout(**L)
-    return f
+    return anim_bar(f)
 
 def b_sumber():
     total_s = sumber['Jumlah'].sum(); html = ""
     for i, (_, r) in enumerate(sumber.head(6).iterrows()):
         pct = r['Jumlah'] / total_s * 100; jml = f"{r['Jumlah']:,}".replace(",", "."); nama = str(r['Sumber_Lapor'])[:22]
         html += (
-            f'<div style="margin-bottom:18px;"><div style="display:flex;justify-content:space-between;margin-bottom:6px;">'
-            f'<span style="color:{TEXT_DARK};font-size:12px;font-weight:600;">{nama}</span>'
+            f'<div style="margin-bottom:18px;"><div style="display:flex;justify-content:space-between;margin-bottom:7px;">'
+            f'<span style="color:{TEXT_MAIN};font-size:12px;font-weight:600;">{nama}</span>'
             f'<span style="color:{TEXT_GRAY};font-size:11px;font-weight:700;">{jml} <span style="font-weight:500;">({pct:.1f}%)</span></span></div>'
-            f'<div style="background:rgba(0,0,0,.04);border-radius:6px;height:8px;">'
-            f'<div style="background:#818CF8;height:8px;border-radius:6px;width:{min(pct, 100):.1f}%;"></div></div></div>')
+            f'<div class="src-track"><div class="src-fill" style="width:{min(pct, 100):.1f}%;animation-delay:{i * 0.12:.2f}s;"></div></div></div>')
     return html
 
 def t_metrik():
-    def sorot(x):
-        return [f'background-color:#DCFCE7;color:#15803D;font-weight:800' if v == x.min() else f'color:#EF4444;font-weight:700' if v == x.max() else '' for v in x]
-    st.dataframe(metrik.style.apply(sorot, subset=['MASE']).format({'MAE': '{:.2f}', 'RMSE': '{:.2f}', 'sMAPE(%)': '{:.2f}%', 'R2': '{:.4f}', 'MASE': '{:.3f}'}), use_container_width=True, hide_index=True)
+    kolom_mase = metrik['MASE']
+    def sorot(c, v):
+        if c != 'MASE': return ''
+        if v == kolom_mase.min(): return 'good'
+        if v == kolom_mase.max(): return 'bad'
+        return ''
+    tabel_html(metrik, fmt={'MAE': '{:.2f}', 'RMSE': '{:.2f}', 'sMAPE(%)': '{:.2f}%', 'R2': '{:.4f}', 'MASE': '{:.3f}'}, sorot=sorot)
 
 def catatan():
+    spasi(16)
     st.markdown(
-        f'<div style="background:#FFFFFF;border-radius:24px;padding:24px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05);margin-top:16px;border:1px solid rgba(0,0,0,0.02);">'
-        f'<div style="color:{TEXT_DARK};font-size:14px;font-weight:700;margin-bottom:8px;">Interpretasi Hasil</div>'
-        f'<div style="color:{TEXT_GRAY};font-size:12.5px;line-height:1.8;font-weight:500;">'
+        f'<div class="glass"><div class="glass-title">Interpretasi Hasil</div>'
+        f'<div class="glass-text">'
         f'Model ARIMA(1,1,1) menghasilkan MASE 1,548. Nilai ini belum mengungguli baseline naive (1,527) maupun mean (1,528), dengan selisih sangat tipis hanya 0,021 pada skala MASE. '
         f'Penambahan variabel eksogen kalender pada SARIMAX tidak memperbaiki akurasi; MASE justru meningkat menjadi 1,653 (kalender dasar) dan 1,670 (kalender lengkap). '
-        f'Residual model tetap white noise (p &gt; 0,05 pada lag 7, 14, dan 21), sehingga keterbatasan akurasi berasal dari sifat data yang overdispersed (rasio 4,60) dan dipengaruhi faktor eksogen fisik di luar dataset seperti kondisi cuaca.</div></div>', unsafe_allow_html=True)
+        f'Residual model tetap white noise (p &gt; 0,05 pada lag 7, 14, dan 21), sehingga keterbatasan akurasi berasal dari sifat data yang overdispersed (rasio 4,60) dan dipengaruhi faktor eksogen fisik di luar dataset seperti kondisi cuaca.</div></div>',
+        unsafe_allow_html=True)
 
 # ============================================================
 # 11. SIMULASI SKENARIO
 # ============================================================
 def simulasi_skenario():
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    spasi(16)
     judul("Simulasi Skenario Faktor Eksternal", "Ilustrasi dampak faktor eksogen tambahan di luar model")
-    st.markdown(f'<div style="background:#FFFFFF;border-radius:20px;padding:16px 20px;margin-bottom:20px;box-shadow:0 4px 15px rgba(0,0,0,0.02);"><div style="color:{TEXT_GRAY};font-size:12.5px;line-height:1.7;font-weight:500;">Model ARIMA sudah menangkap pola historis murni dari data. Simulasi ini menggeser hasil prediksi secara proporsional untuk mengilustrasikan potensi dampak faktor cuaca yang belum dimodelkan.</div></div>', unsafe_allow_html=True)
-    
+    st.markdown('<div class="glass" style="padding:16px 20px;margin-bottom:20px;"><div class="glass-text" style="margin:0;">'
+                'Model ARIMA sudah menangkap pola historis murni dari data. Simulasi ini menggeser hasil prediksi secara proporsional untuk mengilustrasikan potensi dampak faktor cuaca yang belum dimodelkan.</div></div>',
+                unsafe_allow_html=True)
+
     skenario = st.select_slider("Skenario Faktor Eksternal", options=["Musim Kering (-30%)", "Normal (0%)", "Musim Hujan (+20%)", "Cuaca Ekstrem (+50%)"], value="Normal (0%)")
     faktor = {"Musim Kering (-30%)": -0.30, "Normal (0%)": 0.0, "Musim Hujan (+20%)": 0.20, "Cuaca Ekstrem (+50%)": 0.50}[skenario]
     df_sim = peramalan.copy(); df_sim['Prediksi_Sim'] = (df_sim['Prediksi'] * (1 + faktor)).clip(lower=0)
-    
+
     f = go.Figure()
     f.add_trace(go.Scatter(x=df_sim['Tanggal'], y=df_sim['Prediksi'], name='Prediksi ARIMA (asli)', line=dict(color=TEXT_GRAY, width=2, dash='dot', shape='spline')))
-    f.add_trace(go.Scatter(x=df_sim['Tanggal'], y=df_sim['Prediksi_Sim'], name=f'Simulasi: {skenario}', line=dict(color='#818CF8', width=3, shape='spline'), fill='tonexty', fillcolor='rgba(129, 140, 248, 0.1)'))
-    f.update_layout(**tata(300)); st.plotly_chart(f, use_container_width=True)
-    
+    f.add_trace(go.Scatter(x=df_sim['Tanggal'], y=df_sim['Prediksi_Sim'], name=f'Simulasi: {skenario}', line=dict(color=CYAN, width=3, shape='spline'), fill='tonexty', fillcolor='rgba(34, 211, 238, 0.12)'))
+    L = tata(300)
+    ymax = float(max(df_sim['Prediksi'].max(), df_sim['Prediksi_Sim'].max()))
+    L['yaxis']['range'] = [0, ymax * 1.2]
+    f.update_layout(**L)
+    f = anim_garis(f, [[0, 1]])
+    with st.container(border=True):
+        tampil(f)
+
     selisih = df_sim['Prediksi_Sim'].mean() - df_sim['Prediksi'].mean()
     c1, c2 = st.columns(2)
     with c1: st.metric("Rata-rata Prediksi Asli", f"{df_sim['Prediksi'].mean():.1f}", "gangguan/hari")
@@ -480,48 +676,63 @@ def simulasi_skenario():
 # ============================================================
 def g_progres_optimasi():
     df_prog = metrik[~metrik['Model'].str.contains('baseline', case=False, na=False)].copy()
-    warna_bar = ['#C4B5FD'] * (len(df_prog) - 1) + ['#6366F1']
-    f = go.Figure(go.Bar(x=df_prog['Model'], y=df_prog['MASE'], marker_color=warna_bar, text=df_prog['MASE'].round(3), textposition='outside'))
-    f.add_hline(y=1.0, line_dash='dot', line_color='#EF4444', annotation_text='Ambang naive', annotation_font_size=10, annotation_font_color='#EF4444')
-    L = tata(320); L['yaxis']['title'] = 'MASE'; f.update_layout(**L); return f
+    warna_bar = ['#7C6AF0'] * (len(df_prog) - 1) + [CYAN]
+    f = go.Figure(go.Bar(x=list(df_prog['Model']), y=[float(v) for v in df_prog['MASE']], marker_color=warna_bar,
+                         text=list(df_prog['MASE'].round(3)), textposition='outside',
+                         textfont=dict(color=TEXT_MAIN, size=11), cliponaxis=False))
+    f.add_hline(y=1.0, line_dash='dot', line_color=MERAH, annotation_text='Ambang naive', annotation_font_size=10, annotation_font_color=MERAH)
+    L = tata(320); L['yaxis']['title'] = 'MASE'; L['yaxis']['range'] = [0, float(df_prog['MASE'].max()) * 1.25]
+    f.update_layout(**L)
+    return anim_bar(f)
 
 def g_progres_r2():
     df_prog = metrik[~metrik['Model'].str.contains('baseline', case=False, na=False)].copy()
-    warna_bar = ['#DDD6FE' if v >= 0 else '#FEE2E2' for v in df_prog['R2']]
-    f = go.Figure(go.Bar(x=df_prog['Model'], y=df_prog['R2'], marker_color=warna_bar, text=df_prog['R2'].round(4), textposition='outside'))
+    warna_bar = [VIOLET if v >= 0 else '#F87171' for v in df_prog['R2']]
+    f = go.Figure(go.Bar(x=list(df_prog['Model']), y=[float(v) for v in df_prog['R2']], marker_color=warna_bar,
+                         text=list(df_prog['R2'].round(4)), textposition='outside',
+                         textfont=dict(color=TEXT_MAIN, size=11), cliponaxis=False))
     f.add_hline(y=0, line_dash='dot', line_color=TEXT_GRAY)
-    L = tata(320); L['yaxis']['title'] = 'R2'; f.update_layout(**L); return f
+    lo, hi = min(0.0, float(df_prog['R2'].min())), max(0.0, float(df_prog['R2'].max()))
+    rng = (hi - lo) or 1.0
+    L = tata(320); L['yaxis']['title'] = 'R2'; L['yaxis']['range'] = [lo - 0.2 * rng, hi + 0.25 * rng]
+    f.update_layout(**L)
+    return anim_bar(f)
 
 # ============================================================
 # 13. TOGGLE MODEL
 # ============================================================
 def kartu_model_toggle():
     opsi_model = {
-        'ARIMA Dasar': {'nama_metrik': 'ARIMA(1, 1, 1)', 'deskripsi': 'Model univariat terbaik berdasarkan AIC. Residual white noise, tetapi MASE masih di atas 1,0 sehingga belum mengungguli baseline naive.', 'warna': '#E0F2FE'},
-        'SARIMAX Kalender Dasar': {'nama_metrik': 'SARIMAX(1, 1, 1) + kalender dasar', 'deskripsi': 'Penambahan variabel kalender (akhir pekan, awal/akhir bulan). Tidak meningkatkan akurasi; MASE justru lebih tinggi dari ARIMA.', 'warna': '#F3E8FF'},
-        'SARIMAX Kalender Lengkap': {'nama_metrik': 'SARIMAX(1, 1, 2) + kalender lengkap', 'deskripsi': 'Order dioptimasi ulang + fitur hari libur nasional. Hasil terburuk; indikasi overfitting terhadap pola kalender.', 'warna': '#FFEDD5'}
+        'ARIMA Dasar': {'nama_metrik': 'ARIMA(1, 1, 1)', 'deskripsi': 'Model univariat terbaik berdasarkan AIC. Residual white noise, tetapi MASE masih di atas 1,0 sehingga belum mengungguli baseline naive.', 'warna': CYAN},
+        'SARIMAX Kalender Dasar': {'nama_metrik': 'SARIMAX(1, 1, 1) + kalender dasar', 'deskripsi': 'Penambahan variabel kalender (akhir pekan, awal/akhir bulan). Tidak meningkatkan akurasi; MASE justru lebih tinggi dari ARIMA.', 'warna': VIOLET},
+        'SARIMAX Kalender Lengkap': {'nama_metrik': 'SARIMAX(1, 1, 2) + kalender lengkap', 'deskripsi': 'Order dioptimasi ulang + fitur hari libur nasional. Hasil terburuk; indikasi overfitting terhadap pola kalender.', 'warna': ORANGE}
     }
     cols = st.columns(3)
     for i, nama_opsi in enumerate(opsi_model.keys()):
         aktif = st.session_state.model_terpilih == nama_opsi
         with cols[i]:
-            if st.button(nama_opsi, key=f"toggle_{nama_opsi}", use_container_width=True, type="primary" if aktif else "secondary"):
+            if st.button(nama_opsi, key=f"toggle_{nama_opsi}", type="primary" if aktif else "secondary"):
                 st.session_state.model_terpilih = nama_opsi; st.rerun()
 
-    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+    spasi(14)
     pilihan = opsi_model[st.session_state.model_terpilih]
     baris = metrik[metrik['Model'] == pilihan['nama_metrik']]
     if baris.empty:
         st.warning(f"Data untuk model '{pilihan['nama_metrik']}' belum ditemukan pada sheet Metrik."); return
 
     m = baris.iloc[0]
-    st.markdown(f'<div style="background:{pilihan["warna"]};border-radius:24px;padding:24px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;"><span style="color:{TEXT_DARK};font-size:16px;font-weight:800;">{st.session_state.model_terpilih}</span><span style="background:rgba(255,255,255,0.7);color:{TEXT_DARK};padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;">{pilihan["nama_metrik"]}</span></div><div style="color:{TEXT_GRAY};font-size:13px;line-height:1.7;font-weight:500;">{pilihan["deskripsi"]}</div></div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="glass" style="border-left:3px solid {pilihan["warna"]};box-shadow:0 0 40px -14px {pilihan["warna"]};">'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">'
+        f'<span style="color:{TEXT_MAIN};font-size:16px;font-weight:800;">{st.session_state.model_terpilih}</span>'
+        f'<span style="background:rgba(255,255,255,0.08);color:{TEXT_MAIN};padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,.12);">{pilihan["nama_metrik"]}</span></div>'
+        f'<div class="glass-text" style="margin:0;font-size:13px;">{pilihan["deskripsi"]}</div></div>', unsafe_allow_html=True)
 
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    spasi(16)
     k1, k2, k3, k4, k5 = st.columns(5)
     def _nil(series, key, fmt):
         try: return f"{series[key]:{fmt}}".replace(".", ",")
-        except: return "-"
+        except Exception: return "-"
     with k1: st.metric("MAE", _nil(m, 'MAE', '.2f'))
     with k2: st.metric("RMSE", _nil(m, 'RMSE', '.2f'))
     with k3: st.metric("sMAPE", _nil(m, 'sMAPE(%)', '.2f') + ("%" if _nil(m, 'sMAPE(%)', '.2f') != "-" else ""))
@@ -538,7 +749,7 @@ def proses_data_upload(df_baru, kol_tgl_baru, kol_val_baru, jumlah_hari=30, orde
     else:
         ts_baru = kerja.set_index(kol_tgl_baru)[kol_val_baru]
     ts_baru = ts_baru.asfreq('D').interpolate(method='linear').round()
-    
+
     def buat_exog(index_tanggal):
         exog = pd.DataFrame(index=index_tanggal)
         exog['is_weekend'] = (index_tanggal.dayofweek >= 5).astype(int)
@@ -554,7 +765,7 @@ def proses_data_upload(df_baru, kol_tgl_baru, kol_val_baru, jumlah_hari=30, orde
     idx_depan = pd.date_range(ts_baru.index[-1] + pd.Timedelta(days=1), periods=jumlah_hari, freq='D')
     exog_depan = buat_exog(idx_depan)
     fc_baru = model_baru.get_forecast(steps=jumlah_hari, exog=exog_depan); ci = fc_baru.conf_int()
-    
+
     hasil_baru = pd.DataFrame({
         'Tanggal': idx_depan, 'Prediksi': fc_baru.predicted_mean.clip(lower=0).round(2).values,
         'CI_Bawah': ci.iloc[:, 0].clip(lower=0).round(2).values, 'CI_Atas': ci.iloc[:, 1].clip(lower=0).round(2).values,
@@ -562,8 +773,14 @@ def proses_data_upload(df_baru, kol_tgl_baru, kol_val_baru, jumlah_hari=30, orde
     return {'ts_baru': ts_baru, 'hasil': hasil_baru, 'order': order_model, 'aic': model_baru.aic}
 
 def halaman_perbarui_ramalkan():
-    st.markdown(f'<div style="background:#FFFFFF;border-radius:20px;padding:20px 24px;margin-bottom:24px;box-shadow:0 4px 15px rgba(0,0,0,0.02);"><div style="color:{TEXT_DARK};font-size:14px;font-weight:700;margin-bottom:8px;">Peramalan Bergulir (Rolling Forecast)</div><div style="color:{TEXT_GRAY};font-size:12.5px;line-height:1.8;font-weight:500;">Fitur ini memungkinkan sistem melatih ulang model SARIMAX secara otomatis menggunakan data gangguan terbaru yang diunggah, kemudian menghasilkan peramalan dari titik data paling akhir.</div></div>', unsafe_allow_html=True)
-    st.markdown(f'<div style="background:#FFFFFF;border-radius:24px;padding:20px 24px;margin-bottom:24px;box-shadow:0 4px 15px rgba(0,0,0,0.02);"><div style="color:{TEXT_DARK};font-size:14px;font-weight:700;margin-bottom:12px;">Panduan Rentang Peramalan</div><div style="display:flex;gap:16px;flex-wrap:wrap;"><div style="flex:1;min-width:220px;background:#DCFCE7;border-radius:12px;padding:12px 16px;"><span style="color:#15803D;font-size:12px;font-weight:700;">7-42 HARI — DISARANKAN</span><div style="color:#065F46;font-size:11px;line-height:1.6;margin-top:4px;font-weight:500;">Interval kepercayaan masih wajar.</div></div><div style="flex:1;min-width:220px;background:#FFFBEB;border-radius:12px;padding:12px 16px;"><span style="color:#D97706;font-size:12px;font-weight:700;">43-120 HARI — HANYA ILUSTRASI</span><div style="color:#92400E;font-size:11px;line-height:1.6;margin-top:4px;font-weight:500;">Interval melebar signifikan.</div></div></div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="glass" style="margin-bottom:20px;"><div class="glass-title">Peramalan Bergulir (Rolling Forecast)</div>'
+                '<div class="glass-text">Fitur ini memungkinkan sistem melatih ulang model SARIMAX secara otomatis menggunakan data gangguan terbaru yang diunggah, kemudian menghasilkan peramalan dari titik data paling akhir.</div></div>',
+                unsafe_allow_html=True)
+    st.markdown('<div class="glass" style="margin-bottom:24px;"><div class="glass-title" style="margin-bottom:12px;">Panduan Rentang Peramalan</div>'
+                '<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+                '<div class="note green" style="flex:1;min-width:220px;"><div class="t">7-42 HARI — DISARANKAN</div><div class="d">Interval kepercayaan masih wajar.</div></div>'
+                '<div class="note amber" style="flex:1;min-width:220px;"><div class="t">43-120 HARI — HANYA ILUSTRASI</div><div class="d">Interval melebar signifikan.</div></div>'
+                '</div></div>', unsafe_allow_html=True)
 
     file_baru = st.file_uploader("Unggah berkas data gangguan (XLSX / CSV)", type=['xlsx', 'csv'], key="upload_ramalan")
     if file_baru is not None:
@@ -571,16 +788,16 @@ def halaman_perbarui_ramalkan():
             if file_baru.name.lower().endswith('.csv'): df_baru = pd.read_csv(file_baru)
             else: df_baru = pd.read_excel(file_baru)
             st.success(f"Berkas berhasil dimuat - {len(df_baru):,} baris")
-            with st.expander("Pratinjau data", expanded=False): st.dataframe(df_baru.head(10), use_container_width=True)
-            
+            with st.expander("Pratinjau data", expanded=False): tabel_html(df_baru.head(10), tinggi=320)
+
             c1, c2 = st.columns(2)
             with c1: kol_tgl_baru = st.selectbox("Kolom tanggal", df_baru.columns, key="pilih_kol_tgl")
             with c2: kol_val_baru = st.selectbox("Kolom jumlah gangguan", df_baru.columns, key="pilih_kol_val")
             jumlah_hari = st.slider("Jumlah hari ke depan", min_value=7, max_value=120, value=30, step=7)
             jalankan = st.button("🔄 Latih Ulang Model", type="primary")
-            
+
             if jalankan:
-                with st.spinner(f"Melatih ulang..."):
+                with st.spinner("Melatih ulang..."):
                     try:
                         out = proses_data_upload(df_baru, kol_tgl_baru, kol_val_baru, jumlah_hari=jumlah_hari)
                         st.session_state.hasil_ramalan_baru = out['hasil']; st.session_state.ts_baru_terakhir = out['ts_baru']; st.session_state.info_model_baru = out
@@ -589,23 +806,32 @@ def halaman_perbarui_ramalkan():
 
     if st.session_state.hasil_ramalan_baru is not None:
         hasil_baru = st.session_state.hasil_ramalan_baru; ts_baru = st.session_state.ts_baru_terakhir; info = st.session_state.info_model_baru
-        st.markdown(f'<div style="background:#DCFCE7;border-radius:12px;padding:16px 20px;margin-top:20px;margin-bottom:20px;"><div style="color:#15803D;font-size:13px;font-weight:700;">Model berhasil dilatih ulang dari {len(ts_baru)} hari data.</div></div>', unsafe_allow_html=True)
-        
+        st.markdown(f'<div class="note green" style="margin:20px 0;"><div class="t">Model berhasil dilatih ulang dari {len(ts_baru)} hari data.</div></div>', unsafe_allow_html=True)
+
         n_hari = len(hasil_baru)
         k1, k2, k3 = st.columns(3)
         with k1: st.metric("Order Model", f"SARIMAX{info['order']}", "otomatis ↗")
         with k2: st.metric("Proyeksi Rata-rata", f"{hasil_baru['Prediksi'].mean():.2f}".replace(".", ","), "gangguan / hari ↗")
         with k3: st.metric("Periode", f"{n_hari} hari", "ke depan")
-        
-        judul("Grafik Peramalan Baru", "Data aktual dan hasil peramalan bergulir")
-        f = go.Figure()
-        f.add_trace(go.Scatter(x=ts_baru.index[-60:], y=ts_baru.values[-60:], name="Aktual", line=dict(color='#818CF8', width=3, shape='spline'), fill="tozeroy", fillcolor="rgba(129, 140, 248, 0.1)"))
-        f.add_trace(go.Scatter(x=hasil_baru['Tanggal'], y=hasil_baru['CI_Atas'], mode="lines", line=dict(color="rgba(0,0,0,0)"), showlegend=False))
-        f.add_trace(go.Scatter(x=hasil_baru['Tanggal'], y=hasil_baru['CI_Bawah'], fill="tonexty", mode="lines", fillcolor="rgba(167, 139, 250, 0.2)", line=dict(color="rgba(0,0,0,0)"), name="Interval 95%"))
-        f.add_trace(go.Scatter(x=hasil_baru['Tanggal'], y=hasil_baru['Prediksi'], name="Prediksi", line=dict(color='#F97316', width=3, dash="dot", shape='spline')))
-        f.update_layout(**tata(380)); st.plotly_chart(f, use_container_width=True)
-        
-        st.dataframe(hasil_baru.style.format({'Prediksi': '{:.2f}', 'CI_Bawah': '{:.2f}', 'CI_Atas': '{:.2f}'}), use_container_width=True, hide_index=True)
+
+        spasi(20)
+        with st.container(border=True):
+            judul("Grafik Peramalan Baru", "Data aktual dan hasil peramalan bergulir")
+            f = go.Figure()
+            f.add_trace(go.Scatter(x=ts_baru.index[-60:], y=ts_baru.values[-60:], name="Aktual", line=dict(color=CYAN, width=3, shape='spline'), fill="tozeroy", fillcolor="rgba(34, 211, 238, 0.10)"))
+            f.add_trace(go.Scatter(x=hasil_baru['Tanggal'], y=hasil_baru['CI_Atas'], mode="lines", line=dict(color="rgba(0,0,0,0)"), showlegend=False))
+            f.add_trace(go.Scatter(x=hasil_baru['Tanggal'], y=hasil_baru['CI_Bawah'], fill="tonexty", mode="lines", fillcolor="rgba(139, 92, 246, 0.22)", line=dict(color="rgba(0,0,0,0)"), name="Interval 95%"))
+            f.add_trace(go.Scatter(x=hasil_baru['Tanggal'], y=hasil_baru['Prediksi'], name="Prediksi", line=dict(color=ORANGE, width=3, dash="dot", shape='spline')))
+            L = tata(380)
+            ymax = float(max(np.max(ts_baru.values[-60:]), hasil_baru['CI_Atas'].max()))
+            L['yaxis']['range'] = [0, ymax * 1.1]
+            f.update_layout(**L)
+            tampil(anim_garis(f, [[0], [1, 2, 3]]))
+
+        spasi(16)
+        tabel_html(hasil_baru.assign(Tanggal=pd.to_datetime(hasil_baru['Tanggal']).dt.strftime('%d %b %Y')),
+                   fmt={'Prediksi': '{:.2f}', 'CI_Bawah': '{:.2f}', 'CI_Atas': '{:.2f}'}, tinggi=360)
+        spasi(12)
         st.download_button("⬇ Unduh CSV", data=hasil_baru.to_csv(index=False).encode('utf-8'), file_name="peramalan.csv", mime="text/csv")
     else:
         st.info("Unggah berkas data gangguan untuk memulai peramalan bergulir.")
@@ -617,40 +843,60 @@ halaman = st.session_state.halaman
 
 if halaman == 'Ringkasan':
     kpi()
-    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+    spasi(24)
     c1, c2 = st.columns([2, 1])
-    with c1: judul("Tren Gangguan Harian", "Aktual vs prediksi"); st.plotly_chart(g_tren(), use_container_width=True)
-    with c2: judul("Penyebab Gangguan", "Lima kategori"); st.plotly_chart(g_penyebab(), use_container_width=True)
-    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+    with c1:
+        with st.container(border=True):
+            judul("Tren Gangguan Harian", "Aktual vs prediksi"); tampil(g_tren())
+    with c2:
+        with st.container(border=True):
+            judul("Penyebab Gangguan", "Lima kategori"); tampil(g_penyebab(), 30, True)
+    spasi(24)
     c3, c4, c5 = st.columns(3)
-    with c3: judul("Peramalan 30 Hari", "Interval 95%"); st.plotly_chart(g_ramal(), use_container_width=True)
-    with c4: judul("Distribusi Bulanan", "Volume per bulan"); st.plotly_chart(g_bulan(), use_container_width=True)
-    with c5: judul("Kanal Pelaporan", "Sumber laporan"); st.markdown(f'<div style="background:#FFFFFF;border-radius:24px;padding:24px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05);height:100%;">{b_sumber()}</div>', unsafe_allow_html=True)
-    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+    with c3:
+        with st.container(border=True):
+            judul("Peramalan 30 Hari", "Interval 95%"); tampil(g_ramal())
+    with c4:
+        with st.container(border=True):
+            judul("Distribusi Bulanan", "Volume per bulan"); tampil(g_bulan(), 28, True)
+    with c5:
+        with st.container(border=True):
+            judul("Kanal Pelaporan", "Sumber laporan"); st.markdown(f'<div style="padding-top:8px;">{b_sumber()}</div>', unsafe_allow_html=True)
+    spasi(24)
     judul("Perbandingan Model vs Baseline", "Evaluasi pada data testing"); t_metrik(); catatan()
 
 elif halaman == 'Tren Harian':
-    kpi(); st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
-    judul("Tren Gangguan Harian", "Data aktual dan prediksi"); st.plotly_chart(g_tren(420), use_container_width=True)
-    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+    kpi(); spasi(24)
+    with st.container(border=True):
+        judul("Tren Gangguan Harian", "Data aktual dan prediksi"); tampil(g_tren(420))
+    spasi(24)
     a, b = st.columns(2)
-    with a: judul("Distribusi Bulanan", "Volume per bulan"); st.plotly_chart(g_bulan(320), use_container_width=True)
+    with a:
+        with st.container(border=True):
+            judul("Distribusi Bulanan", "Volume per bulan"); tampil(g_bulan(320), 28, True)
     with b:
-        judul("Statistik Deskriptif", "Ringkasan periode")
-        s = hist_f[kol_val]; total = f"{int(s.sum()):,}".replace(",", ".")
-        st.markdown(f'<div style="background:#FFFFFF;border-radius:24px;padding:24px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05);"><table style="width:100%;font-size:13px;font-weight:500;"><tr style="border-bottom:1px solid rgba(0,0,0,0.05);"><td style="padding:12px 0;color:{TEXT_GRAY};">Total</td><td style="padding:12px 0;text-align:right;color:{TEXT_DARK};font-weight:700;">{total}</td></tr><tr style="border-bottom:1px solid rgba(0,0,0,0.05);"><td style="padding:12px 0;color:{TEXT_GRAY};">Rata-rata</td><td style="padding:12px 0;text-align:right;color:{TEXT_DARK};font-weight:700;">{s.mean():.2f}</td></tr><tr><td style="padding:12px 0;color:{TEXT_GRAY};">Maksimum</td><td style="padding:12px 0;text-align:right;color:#EF4444;font-weight:700;">{int(s.max())}</td></tr></table></div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            judul("Statistik Deskriptif", "Ringkasan periode")
+            s = hist_f[kol_val]; total = f"{int(s.sum()):,}".replace(",", ".")
+            st.markdown(
+                f'<table style="width:100%;font-size:13px;font-weight:500;border-collapse:collapse;">'
+                f'<tr style="border-bottom:1px solid rgba(255,255,255,0.07);"><td style="padding:14px 0;color:{TEXT_GRAY};">Total</td><td style="padding:14px 0;text-align:right;color:{TEXT_MAIN};font-weight:700;">{total}</td></tr>'
+                f'<tr style="border-bottom:1px solid rgba(255,255,255,0.07);"><td style="padding:14px 0;color:{TEXT_GRAY};">Rata-rata</td><td style="padding:14px 0;text-align:right;color:{TEXT_MAIN};font-weight:700;">{s.mean():.2f}</td></tr>'
+                f'<tr><td style="padding:14px 0;color:{TEXT_GRAY};">Maksimum</td><td style="padding:14px 0;text-align:right;color:{MERAH};font-weight:700;">{int(s.max())}</td></tr></table>',
+                unsafe_allow_html=True)
 
 elif halaman == 'Peramalan':
     k1, k2, k3 = st.columns(3)
     with k1: st.metric("PROYEKSI", f"{peramalan['Prediksi'].mean():.2f}".replace(".", ","), "gangguan / hari ↗")
     with k2: st.metric("BATAS BAWAH", f"{peramalan['CI_Bawah'].min():.1f}".replace(".", ","), "interval 95%")
     with k3: st.metric("BATAS ATAS", f"{peramalan['CI_Atas'].max():.1f}".replace(".", ","), "interval 95%")
-    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
-    judul("Peramalan 30 Hari ke Depan", "Prediksi beserta interval 95%"); st.plotly_chart(g_ramal(400), use_container_width=True)
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+    spasi(24)
+    with st.container(border=True):
+        judul("Peramalan 30 Hari ke Depan", "Prediksi beserta interval 95%"); tampil(g_ramal(400))
+    spasi(20)
     judul("Tabel Hasil Peramalan", "Rincian prediksi harian")
     tp = peramalan.copy(); tp['Tanggal'] = pd.to_datetime(tp['Tanggal']).dt.strftime('%d %b %Y')
-    st.dataframe(tp.style.format({'Prediksi': '{:.2f}', 'CI_Bawah': '{:.2f}', 'CI_Atas': '{:.2f}'}), use_container_width=True, hide_index=True, height=320)
+    tabel_html(tp, fmt={'Prediksi': '{:.2f}', 'CI_Bawah': '{:.2f}', 'CI_Atas': '{:.2f}'}, tinggi=320)
     simulasi_skenario()
 
 elif halaman == 'Perbarui & Ramalkan':
@@ -658,23 +904,34 @@ elif halaman == 'Perbarui & Ramalkan':
 
 elif halaman == 'Analisis Penyebab':
     a, b = st.columns(2)
-    with a: judul("Distribusi Penyebab", "Kategori terbanyak"); st.plotly_chart(g_penyebab(340), use_container_width=True)
-    with b: judul("Kanal Pelaporan", "Sumber laporan"); st.markdown(f'<div style="background:#FFFFFF;border-radius:24px;padding:24px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05);">{b_sumber()}</div>', unsafe_allow_html=True)
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+    with a:
+        with st.container(border=True):
+            judul("Distribusi Penyebab", "Kategori terbanyak"); tampil(g_penyebab(340), 30, True)
+    with b:
+        with st.container(border=True):
+            judul("Kanal Pelaporan", "Sumber laporan"); st.markdown(f'<div style="padding-top:8px;">{b_sumber()}</div>', unsafe_allow_html=True)
+    spasi(20)
     judul("Rincian Penyebab", "Seluruh kategori")
     p = penyebab.copy(); p['Proporsi (%)'] = (p['Jumlah'] / p['Jumlah'].sum() * 100).round(2)
-    st.dataframe(p.head(15), use_container_width=True, hide_index=True, height=380)
+    tabel_html(p.head(15), tinggi=380)
 
 elif halaman == 'Perbandingan Model':
-    st.markdown(f'<div style="background:#FFFFFF;border-radius:20px;padding:20px 24px;margin-bottom:24px;box-shadow:0 4px 15px rgba(0,0,0,0.02);"><div style="color:{TEXT_DARK};font-size:14px;font-weight:700;margin-bottom:8px;">Bandingkan Model</div><div style="color:{TEXT_GRAY};font-size:12.5px;font-weight:500;">Klik salah satu tombol untuk melihat performa.</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="glass" style="margin-bottom:24px;"><div class="glass-title">Bandingkan Model</div>'
+                '<div class="glass-text" style="margin:0;">Klik salah satu tombol untuk melihat performa.</div></div>', unsafe_allow_html=True)
     kartu_model_toggle()
-    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+    spasi(24)
     a, b = st.columns(2)
-    with a: judul("MASE Seluruh Model", "Semakin rendah semakin baik"); st.plotly_chart(g_progres_optimasi(), use_container_width=True)
-    with b: judul("R² Seluruh Model", "Semakin tinggi semakin baik"); st.plotly_chart(g_progres_r2(), use_container_width=True)
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+    with a:
+        with st.container(border=True):
+            judul("MASE Seluruh Model", "Semakin rendah semakin baik"); tampil(g_progres_optimasi(), 28, True)
+    with b:
+        with st.container(border=True):
+            judul("R² Seluruh Model", "Semakin tinggi semakin baik"); tampil(g_progres_r2(), 28, True)
+    spasi(20)
     judul("Tabel Lengkap", "ARIMA, SARIMAX, dan baseline"); t_metrik()
-    st.markdown(f'<div style="background:#DCFCE7;border-radius:20px;padding:20px 24px;margin-top:20px;"><div style="color:#15803D;font-size:14px;font-weight:700;margin-bottom:8px;">Kesimpulan</div><div style="color:{TEXT_GRAY};font-size:12.5px;line-height:1.8;font-weight:500;">Model final yang digunakan adalah ARIMA(1,1,1). Penambahan eksogen tidak meningkatkan akurasi.</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="note green" style="margin-top:20px;padding:20px 24px;"><div class="t" style="font-size:14px;margin-bottom:8px;">Kesimpulan</div>'
+                '<div class="d" style="font-size:12.5px;line-height:1.8;">Model final yang digunakan adalah ARIMA(1,1,1). Penambahan eksogen tidak meningkatkan akurasi.</div></div>',
+                unsafe_allow_html=True)
 
 elif halaman == 'Akurasi Model':
     baris_terbaik = metrik.loc[metrik['MASE'].idxmin()]; ar = baris_terbaik
@@ -683,16 +940,19 @@ elif halaman == 'Akurasi Model':
     with k2: st.metric("RMSE", f"{ar['RMSE']:.2f}".replace(".", ","), "root mean sq.")
     with k3: st.metric("sMAPE", f"{ar['sMAPE(%)']:.2f}%".replace(".", ","), "symmetric MAPE")
     with k4: st.metric("MASE", f"{ar['MASE']:.3f}".replace(".", ","), "model terbaik")
-    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+    spasi(24)
     judul("Perbandingan Model vs Baseline", "Evaluasi pada data testing"); t_metrik(); catatan()
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+    spasi(20)
     judul("Validasi Model", "Uji diagnostik residual")
     v1, v2, v3 = st.columns(3)
     for kol, (label, nilai) in zip([v1, v2, v3], [("Ljung-Box Lag 7", "0,609"), ("Ljung-Box Lag 14", "0,713"), ("Ljung-Box Lag 21", "0,671")]):
         with kol:
-            st.markdown(f'<div style="background:#FFFFFF;border-radius:24px;padding:24px;text-align:center;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05);"><div style="color:{TEXT_GRAY};font-size:12px;font-weight:600;text-transform:uppercase;">{label}</div><div style="color:#15803D;font-size:40px;font-weight:800;margin:8px 0 4px;letter-spacing:-1px;">{nilai}</div><div style="color:{TEXT_GRAY};font-size:11px;font-weight:500;">p &gt; 0,05 · white noise</div></div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="glass" style="text-align:center;"><div style="color:{TEXT_GRAY};font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;">{label}</div>'
+                f'<div style="color:{HIJAU};font-size:40px;font-weight:800;margin:8px 0 4px;letter-spacing:-1px;text-shadow:0 0 24px rgba(52,211,153,.5);">{nilai}</div>'
+                f'<div style="color:{TEXT_GRAY};font-size:11px;font-weight:500;">p &gt; 0,05 · white noise</div></div>', unsafe_allow_html=True)
 
 # ============================================================
 # 16. FOOTER
 # ============================================================
-st.markdown(f'<div style="text-align:center;color:{TEXT_GRAY};font-size:11px;font-weight:500;padding:30px 0 10px;border-top:1px solid rgba(0,0,0,0.05);margin-top:30px;">Dashboard Peramalan Gangguan Kabel Sambungan Rumah &nbsp;·&nbsp; PT. Haleyora Power Serpong &nbsp;·&nbsp; ARIMA(1,1,1) &nbsp;·&nbsp; CRISP-DM Framework</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center;color:{TEXT_GRAY};font-size:11px;font-weight:500;padding:30px 0 10px;border-top:1px solid rgba(255,255,255,0.07);margin-top:30px;">Dashboard Peramalan Gangguan Kabel Sambungan Rumah &nbsp;·&nbsp; PT. Haleyora Power Serpong &nbsp;·&nbsp; ARIMA(1,1,1) &nbsp;·&nbsp; CRISP-DM Framework</div>', unsafe_allow_html=True)
