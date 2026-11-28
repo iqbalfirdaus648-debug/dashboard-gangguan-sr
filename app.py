@@ -126,7 +126,7 @@ section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] {
     background:transparent !important;
 }
 section[data-testid="stSidebar"] [data-testid="stSidebarContent"] { overflow-x:hidden; padding-top:0 !important; }
-section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding: 1.1rem 1rem 1rem 1rem !important; }
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding: 2.7rem 1rem 1rem 1rem !important; }
 section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 6px; }
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
     background: none !important; border: none !important; box-shadow: none !important;
@@ -134,9 +134,13 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"]
 }
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"]::before { display:none !important; }
 
-.brand-wide { background:#FFFFFF; border-radius:16px; padding:10px 14px; display:flex; align-items:center;
-              justify-content:center; box-shadow:0 10px 30px -12px rgba(34,211,238,.7); }
-.brand-wide img { height:38px; object-fit:contain; max-width:100%; }
+.brand-wide { position:relative; border-radius:18px; padding:14px 18px; display:flex; align-items:center;
+              justify-content:center;
+              background: linear-gradient(135deg, #FFFFFF 0%, #EAF6FF 55%, #DDEBFF 100%);
+              border:1.5px solid rgba(34,211,238,.9);
+              box-shadow: 0 0 0 4px rgba(34,211,238,.10), 0 14px 34px -10px rgba(34,211,238,.75), 0 0 28px -6px rgba(139,92,246,.55); }
+.brand-wide img { height:52px; object-fit:contain; max-width:100%;
+                  filter: saturate(1.45) contrast(1.18) drop-shadow(0 1px 1px rgba(15,23,42,.25)); }
 .brand-text { display:flex; align-items:center; gap:12px; padding:2px 4px; }
 .brand-logo { width:44px; height:44px; border-radius:14px; flex-shrink:0; font-size:22px;
               background:linear-gradient(135deg,#8B5CF6,#22D3EE); display:flex; align-items:center; justify-content:center;
@@ -359,6 +363,35 @@ li[role="option"]:hover { background:rgba(34,211,238,.18) !important; }
 [data-testid="stSlider"] *, [data-testid="stSelectSlider"] * { color:#CBD5E1 !important; }
 div[data-baseweb="slider"] div[role="slider"] { background:#22D3EE !important; box-shadow:0 0 16px rgba(34,211,238,.95); }
 iframe { border:none; background:transparent; }
+
+/* ══════════ PERBAIKAN SIDEBAR v2 ══════════ */
+/* tombol collapse: strip sendiri di atas, tidak menimpa logo */
+section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] { top:8px !important; right:12px !important; }
+
+/* tanpa scrollbar di dalam sidebar (tetap bisa di-scroll) */
+section[data-testid="stSidebar"] [data-testid="stSidebarContent"] { scrollbar-width:none; -ms-overflow-style:none; }
+section[data-testid="stSidebar"] *::-webkit-scrollbar { display:none !important; width:0 !important; height:0 !important; }
+
+/* jarak lebih rapat agar semua muat */
+section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap:4px; }
+section[data-testid="stSidebar"] .stButton > button { height:42px !important; min-height:42px !important; }
+.brand-title { margin:14px 4px 0 4px; }
+.brand-sub { margin:4px 4px 12px 4px; }
+.menu-label { color:#7C8BA5; margin:14px 6px 6px 6px; }
+.status { margin:14px 0 8px 0; padding:12px 14px; }
+
+/* kolom cari: seragam gelap-neon (hilangkan warna cokelat bawaan) */
+section[data-testid="stSidebar"] [data-testid="stTextInput"] [data-baseweb="input"] {
+    background: rgba(8,14,38,.9) !important; border:1px solid rgba(34,211,238,.30) !important; border-radius:14px !important;
+}
+section[data-testid="stSidebar"] [data-testid="stTextInput"] [data-baseweb="base-input"],
+section[data-testid="stSidebar"] [data-testid="stTextInput"] input {
+    background:transparent !important; background-color:transparent !important; box-shadow:none !important;
+}
+section[data-testid="stSidebar"] [data-testid="stTextInput"] input::placeholder { color:#64748B !important; opacity:1; }
+section[data-testid="stSidebar"] [data-testid="stTextInput"] [data-baseweb="input"]:focus-within {
+    border-color:#22D3EE !important; box-shadow:0 0 0 3px rgba(34,211,238,.18) !important;
+}
 
 /* scrollbar neon */
 ::-webkit-scrollbar { width:8px; height:8px; }
