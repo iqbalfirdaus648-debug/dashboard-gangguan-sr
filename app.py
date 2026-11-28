@@ -378,7 +378,7 @@ section[data-testid="stSidebar"] .stButton > button { height:42px !important; mi
 /* pakai padding (bukan margin) supaya ikut dihitung dalam tinggi kotak markdown Streamlit */
 .brand-title { margin:0 !important; padding:14px 4px 0 4px; }
 .brand-sub { margin:0 !important; padding:4px 4px 14px 4px; }
-.menu-label { color:#7C8BA5; margin:0 !important; padding:16px 6px 8px 6px; line-height:1.3; }
+.menu-label { color:#7C8BA5; margin:0 !important; padding:16px 6px 12px 6px; line-height:1.3; }
 .status { margin:14px 0 8px 0; padding:12px 14px; }
 
 /* kolom cari: seragam gelap-neon (hilangkan warna cokelat bawaan) */
