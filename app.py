@@ -379,7 +379,9 @@ section[data-testid="stSidebar"] .stButton > button { height:42px !important; mi
 .brand-title { margin:0 !important; padding:24px 4px 0 4px; }
 .brand-sub { margin:0 !important; padding:6px 4px 18px 4px; }
 .menu-label { color:#7C8BA5; margin:0 !important; padding:16px 6px 12px 6px; line-height:1.3; }
-.status { margin:14px 0 8px 0; padding:12px 14px; }
+.status { margin:0 !important; padding:12px 14px; }
+section[data-testid="stSidebar"] .st-key-reload { width:100%; margin-top:10px; }
+section[data-testid="stSidebar"] .st-key-reload button { width:100% !important; justify-content:center !important; }
 
 /* kolom cari: seragam gelap-neon (hilangkan warna cokelat bawaan) */
 section[data-testid="stSidebar"] [data-testid="stTextInput"] [data-baseweb="input"] {
@@ -500,7 +502,7 @@ def render_sidebar():
                     f'<span class="lbl">Model aktif</span></div><div class="val">ARIMA(1,1,1)</div>'
                     f'<div class="sub">{jumlah_hari_hist} hari data historis</div></div>',
                     unsafe_allow_html=True)
-        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
         st.button("Muat Ulang Data", icon=(":material/refresh:" if pakai_material else "🔄"),
                   key="reload", on_click=_muat_ulang)
 
