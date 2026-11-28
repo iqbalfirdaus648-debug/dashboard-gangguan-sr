@@ -1,6 +1,6 @@
 # ============================================================
 # DASHBOARD PERAMALAN GANGGUAN KABEL SR - PLN UP3 SERPONG
-# Desain: Futuristik Dark Glass + Sidebar Kartu + Grafik Beranimasi
+# Desain: Cyber-Futuristik (Neon Glass + HUD + Grafik Beranimasi)
 # Logika model (ARIMA / SARIMAX) TIDAK diubah.
 # ============================================================
 import re
@@ -45,32 +45,49 @@ FONT_PLOT = "Plus Jakarta Sans, Segoe UI, sans-serif"
 # ============================================================
 CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0');
 
 :root { --violet:#8B5CF6; --indigo:#6366F1; --cyan:#22D3EE; --pink:#F472B6; --text:#F1F5F9; --muted:#94A3B8; }
 
 html, body, [class*="css"] { font-family:'Plus Jakarta Sans', sans-serif; }
 
-/* ---------- Latar futuristik: gradasi neon + grid ---------- */
+@property --ang { syntax:'<angle>'; initial-value:0deg; inherits:false; }
+
+/* ---------- Latar futuristik: aurora neon + grid + scanline ---------- */
 .stApp {
     background:
-        linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px),
-        radial-gradient(900px 600px at 14% -10%, rgba(139,92,246,.30), transparent 60%),
-        radial-gradient(800px 560px at 100% 0%, rgba(34,211,238,.16), transparent 55%),
-        radial-gradient(700px 500px at 62% 112%, rgba(244,114,182,.13), transparent 60%),
-        #060A18;
+        linear-gradient(rgba(34,211,238,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,211,238,.035) 1px, transparent 1px),
+        radial-gradient(900px 600px at 12% -10%, rgba(139,92,246,.34), transparent 60%),
+        radial-gradient(800px 560px at 100% 0%, rgba(34,211,238,.20), transparent 55%),
+        radial-gradient(700px 500px at 62% 112%, rgba(244,114,182,.16), transparent 60%),
+        #040716;
     background-size: 46px 46px, 46px 46px, auto, auto, auto, auto;
     background-attachment: fixed;
     color: #E2E8F0;
 }
+/* aurora yang bergerak pelan */
+.stApp::before {
+    content:""; position:fixed; inset:-20%; pointer-events:none; z-index:0; opacity:.55;
+    background:
+        radial-gradient(420px 320px at 25% 30%, rgba(139,92,246,.22), transparent 70%),
+        radial-gradient(380px 300px at 75% 65%, rgba(34,211,238,.16), transparent 70%);
+    animation: aurora 18s ease-in-out infinite alternate;
+}
+/* garis pemindai (scanline) halus */
+.stApp::after {
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0, rgba(255,255,255,.018) 1px, transparent 1px, transparent 3px);
+}
+[data-testid="stMain"], [data-testid="stAppViewContainer"] > section { position:relative; z-index:1; }
+
 #MainMenu, footer { visibility:hidden; }
 header[data-testid="stHeader"] { background: transparent !important; }
 [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"],
 [data-testid="stSidebarNav"] { display:none !important; }
 [data-testid="stSidebarCollapseButton"] button, [data-testid="stSidebarCollapsedControl"] button,
-[data-testid="collapsedControl"] button { color:#C4B5FD !important; }
+[data-testid="collapsedControl"] button { color:#67E8F9 !important; }
 
 .block-container { padding: 1.6rem 2.4rem 2.5rem 2.4rem !important; max-width: 1500px; }
 
@@ -83,102 +100,140 @@ h1, h2, h3, h4 { color: var(--text) !important; }
 @keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(52,211,153,.7); } 70% { box-shadow:0 0 0 9px rgba(52,211,153,0); } 100% { box-shadow:0 0 0 0 rgba(52,211,153,0); } }
 @keyframes glowmove { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+@keyframes aurora { 0% { transform: translate3d(-3%, -2%, 0) scale(1); } 100% { transform: translate3d(4%, 3%, 0) scale(1.12); } }
+@keyframes spin { to { --ang: 360deg; } }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+@keyframes flicker { 0%,100% { text-shadow:0 0 18px rgba(34,211,238,.55); } 50% { text-shadow:0 0 30px rgba(139,92,246,.85); } }
 
 /* ══════════ SIDEBAR KARTU ══════════ */
 section[data-testid="stSidebar"] {
-    width: 280px !important; min-width: 280px !important;
+    width: 300px !important; min-width: 300px !important;
     background: transparent !important; border-right: none !important;
 }
 section[data-testid="stSidebar"] > div:first-child {
-    background: linear-gradient(180deg, rgba(20,26,56,.82), rgba(10,14,34,.86));
+    background: linear-gradient(180deg, rgba(18,24,54,.86), rgba(8,12,30,.9));
     backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     margin: 14px 0 14px 14px; width: calc(100% - 14px) !important;
     height: calc(100vh - 28px) !important;
-    border-radius: 26px; border: 1px solid rgba(255,255,255,.09);
-    box-shadow: 0 30px 60px -20px rgba(0,0,0,.7), 0 0 40px -12px rgba(139,92,246,.35);
-    padding-top: 0 !important;
+    border-radius: 26px; border: 1px solid rgba(34,211,238,.16);
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.75), 0 0 46px -14px rgba(34,211,238,.38), inset 0 1px 0 rgba(255,255,255,.07);
+    padding-top: 0 !important; position: relative;
 }
-section[data-testid="stSidebar"] [data-testid="stSidebarContent"] { overflow-x: hidden; }
-section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding: 1.2rem 1rem 1rem 1rem !important; }
+/* header bawaan: tidak makan tinggi, tombol collapse di pojok kanan atas */
+section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] {
+    position:absolute !important; top:10px; right:10px; z-index:10;
+    height:auto !important; min-height:0 !important; padding:0 !important; margin:0 !important;
+    background:transparent !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarContent"] { overflow-x:hidden; padding-top:0 !important; }
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding: 1.1rem 1rem 1rem 1rem !important; }
 section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 6px; }
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
     background: none !important; border: none !important; box-shadow: none !important;
     padding: 0 !important; animation: none !important; backdrop-filter: none !important;
 }
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"]::before { display:none !important; }
 
 .brand-wide { background:#FFFFFF; border-radius:16px; padding:10px 14px; display:flex; align-items:center;
-              justify-content:center; box-shadow:0 10px 30px -12px rgba(139,92,246,.6); }
+              justify-content:center; box-shadow:0 10px 30px -12px rgba(34,211,238,.7); }
 .brand-wide img { height:38px; object-fit:contain; max-width:100%; }
 .brand-text { display:flex; align-items:center; gap:12px; padding:2px 4px; }
 .brand-logo { width:44px; height:44px; border-radius:14px; flex-shrink:0; font-size:22px;
               background:linear-gradient(135deg,#8B5CF6,#22D3EE); display:flex; align-items:center; justify-content:center;
-              box-shadow:0 10px 24px -8px rgba(139,92,246,.9); }
-.brand-title { font-weight:800; font-size:16px; color:#F8FAFC; letter-spacing:-.3px; margin:14px 4px 0 4px; line-height:1.25; }
-.brand-sub { font-size:11px; color:#94A3B8; font-weight:600; margin:2px 4px 14px 4px; }
+              box-shadow:0 10px 24px -8px rgba(34,211,238,.9); }
+.brand-title { font-family:'Orbitron',sans-serif; font-weight:700; font-size:14.5px; color:#F8FAFC; letter-spacing:.4px;
+               margin:16px 4px 0 4px; line-height:1.3; text-transform:uppercase; }
+.brand-sub { font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#67E8F9; font-weight:500;
+             margin:4px 4px 14px 4px; letter-spacing:.6px; }
 
 section[data-testid="stSidebar"] [data-baseweb="input"],
 section[data-testid="stSidebar"] [data-baseweb="base-input"] {
-    background: rgba(255,255,255,.05) !important; border: 1px solid rgba(255,255,255,.08) !important;
+    background: rgba(255,255,255,.05) !important; border: 1px solid rgba(34,211,238,.18) !important;
     border-radius: 14px !important;
 }
-section[data-testid="stSidebar"] input {
-    font-size:13px !important; font-weight:600 !important; color:#E2E8F0 !important; padding:10px 12px !important;
+section[data-testid="stSidebar"] [data-testid="stTextInput"] input {
+    font-size:13px !important; font-weight:600 !important; color:#E2E8F0 !important;
+    padding:10px 12px !important; height:42px;
 }
-section[data-testid="stSidebar"] [data-testid="stTextInput"] { margin-bottom: 8px; }
-.menu-label { font-size:11px; font-weight:700; color:#64748B; letter-spacing:.8px; text-transform:uppercase; margin:8px 6px 4px 6px; }
+section[data-testid="stSidebar"] [data-testid="stTextInput"] { margin-bottom: 4px; }
+.menu-label { display:block; font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; color:#475569;
+              letter-spacing:1.6px; text-transform:uppercase; margin:16px 6px 8px 6px; line-height:1.2; }
 
 section[data-testid="stSidebar"] .stButton { width:100%; }
 section[data-testid="stSidebar"] .stButton > button {
-    width:100% !important; min-height:44px; height:auto;
-    justify-content:flex-start !important; text-align:left; gap:12px; padding:10px 14px !important;
-    border:none !important; border-radius:14px !important;
+    width:100% !important; height:44px !important; min-height:44px !important;
+    justify-content:flex-start !important; text-align:left; gap:12px; padding:0 14px !important;
+    border:1px solid transparent !important; border-radius:14px !important; white-space:nowrap;
     background:transparent !important; color:#94A3B8 !important; box-shadow:none !important;
     transition: all .25s ease;
 }
 section[data-testid="stSidebar"] .stButton > button > div { justify-content:flex-start !important; gap:12px; width:100%; }
 section[data-testid="stSidebar"] .stButton > button p {
-    font-size:14px !important; font-weight:600 !important; color:inherit !important; margin:0; text-align:left;
+    font-size:13.5px !important; font-weight:600 !important; color:inherit !important; margin:0; text-align:left;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 section[data-testid="stSidebar"] .stButton > button [data-testid="stIconMaterial"] { font-size:21px !important; color:inherit !important; }
 section[data-testid="stSidebar"] .stButton > button:hover {
-    background: rgba(139,92,246,.12) !important; color:#E9D5FF !important; transform: translateX(3px);
+    background: rgba(34,211,238,.09) !important; color:#CFFAFE !important; transform: translateX(3px);
+    border-color: rgba(34,211,238,.22) !important;
 }
 section[data-testid="stSidebar"] .stButton > button[kind="primary"],
 section[data-testid="stSidebar"] .stButton > button[data-testid="stBaseButton-primary"] {
-    background: linear-gradient(135deg,#8B5CF6,#6366F1) !important; color:#FFFFFF !important;
-    box-shadow: 0 12px 28px -10px rgba(139,92,246,.95), 0 0 0 1px rgba(255,255,255,.12) inset !important;
+    background: linear-gradient(135deg, rgba(139,92,246,.95), rgba(99,102,241,.95)) !important; color:#FFFFFF !important;
+    border-color: rgba(255,255,255,.18) !important;
+    box-shadow: 0 12px 28px -10px rgba(139,92,246,.95), 0 0 22px -4px rgba(34,211,238,.45), 0 0 0 1px rgba(255,255,255,.1) inset !important;
 }
 
-.status { margin-top:16px; padding:14px; border-radius:16px; background:rgba(255,255,255,.045);
-          border:1px solid rgba(255,255,255,.08); }
+.status { margin:20px 0 10px 0; padding:14px; border-radius:16px; background:rgba(255,255,255,.04);
+          border:1px solid rgba(34,211,238,.18); position:relative; overflow:hidden; }
+.status::before { content:""; position:absolute; left:0; top:0; height:100%; width:3px;
+                  background:linear-gradient(180deg,#22D3EE,#8B5CF6); }
 .status .row { display:flex; align-items:center; gap:8px; }
 .pulse { width:9px; height:9px; border-radius:50%; background:#34D399; display:inline-block; animation:pulse 2s infinite; }
-.status .lbl { font-size:11px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:.6px; }
-.status .val { font-size:15px; font-weight:800; color:#F8FAFC; margin-top:6px; }
-.status .sub { font-size:11px; color:#64748B; font-weight:600; margin-top:2px; }
+.status .lbl { font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:1px; }
+.status .val { font-family:'Orbitron',sans-serif; font-size:16px; font-weight:700; color:#F8FAFC; margin-top:8px; letter-spacing:.5px; }
+.status .sub { font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#64748B; font-weight:500; margin-top:4px; }
 
-/* ══════════ KARTU KACA ══════════ */
+section[data-testid="stSidebar"] .st-key-reload button {
+    justify-content:center !important; border:1px solid rgba(255,255,255,.10) !important;
+    background:rgba(255,255,255,.04) !important;
+}
+
+/* ══════════ KARTU KACA + BORDER NEON BERPUTAR ══════════ */
 div[data-testid="stVerticalBlockBorderWrapper"] {
-    background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.025)) !important;
-    border: 1px solid rgba(255,255,255,.09) !important;
+    position: relative;
+    background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.022)) !important;
+    border: 1px solid rgba(255,255,255,.08) !important;
     border-radius: 24px !important;
     padding: 1.1rem 1.3rem !important;
     backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-    box-shadow: 0 20px 50px -24px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.06) !important;
+    box-shadow: 0 20px 50px -24px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06) !important;
     animation: fadeUp .7s cubic-bezier(.2,.8,.2,1) both;
-    transition: border-color .3s ease, box-shadow .3s ease;
+    transition: box-shadow .3s ease;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]::before {
+    content:""; position:absolute; inset:0; border-radius:24px; padding:1.2px; pointer-events:none; opacity:.8;
+    background: conic-gradient(from var(--ang), transparent 0%, transparent 52%, rgba(34,211,238,.95) 72%, rgba(139,92,246,.95) 86%, transparent 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    animation: spin 7s linear infinite;
 }
 div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-    border-color: rgba(139,92,246,.45) !important;
-    box-shadow: 0 20px 50px -24px rgba(0,0,0,.75), 0 0 34px -8px rgba(139,92,246,.45) !important;
+    box-shadow: 0 20px 50px -24px rgba(0,0,0,.8), 0 0 40px -8px rgba(34,211,238,.4) !important;
 }
 .glass {
+    position:relative;
     background: linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.025));
     border: 1px solid rgba(255,255,255,.09); border-radius: 22px; padding: 22px 24px;
     backdrop-filter: blur(18px); animation: fadeUp .7s cubic-bezier(.2,.8,.2,1) both;
     box-shadow: 0 20px 50px -24px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.06);
 }
-.glass-title { color:#F8FAFC; font-size:14px; font-weight:700; margin-bottom:8px; }
+/* sudut HUD */
+.glass::before, .glass::after { content:""; position:absolute; width:14px; height:14px; pointer-events:none; opacity:.85; }
+.glass::before { top:9px; left:9px; border-top:2px solid #22D3EE; border-left:2px solid #22D3EE; border-top-left-radius:6px; }
+.glass::after { bottom:9px; right:9px; border-bottom:2px solid #8B5CF6; border-right:2px solid #8B5CF6; border-bottom-right-radius:6px; }
+.glass-title { color:#F8FAFC; font-family:'Orbitron',sans-serif; font-size:13px; font-weight:700; margin-bottom:10px;
+               letter-spacing:.8px; text-transform:uppercase; }
 .glass-text { color:#94A3B8; font-size:12.5px; line-height:1.8; font-weight:500; }
 .note { border-radius:16px; padding:16px 20px; }
 .note.green { background:rgba(52,211,153,.10); border:1px solid rgba(52,211,153,.30); }
@@ -190,19 +245,19 @@ div[data-testid="stVerticalBlockBorderWrapper"]:hover {
 
 /* ══════════ KPI ══════════ */
 [data-testid="stMetric"] {
-    background: linear-gradient(160deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
+    background: linear-gradient(160deg, rgba(255,255,255,.08), rgba(255,255,255,.025));
     border: 1px solid rgba(255,255,255,.09); border-radius: 22px; padding: 22px 22px 18px 22px;
     position: relative; overflow: hidden; backdrop-filter: blur(16px);
-    box-shadow: 0 20px 50px -24px rgba(0,0,0,.75);
+    box-shadow: 0 20px 50px -24px rgba(0,0,0,.8);
     animation: fadeUp .7s cubic-bezier(.2,.8,.2,1) both;
     transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
 }
 [data-testid="stMetric"]:hover {
-    transform: translateY(-5px); border-color: rgba(139,92,246,.5);
-    box-shadow: 0 24px 50px -20px rgba(0,0,0,.8), 0 0 36px -8px rgba(139,92,246,.55);
+    transform: translateY(-5px); border-color: rgba(34,211,238,.55);
+    box-shadow: 0 24px 50px -20px rgba(0,0,0,.85), 0 0 38px -8px rgba(34,211,238,.6);
 }
 [data-testid="stMetric"]::before {
-    content:""; position:absolute; left:0; top:0; width:100%; height:2px; opacity:.9;
+    content:""; position:absolute; left:0; top:0; width:100%; height:2px; opacity:.95;
     background: linear-gradient(90deg, transparent, #8B5CF6, #22D3EE, transparent);
     background-size: 200% 100%; animation: sweep 4s linear infinite;
 }
@@ -218,46 +273,57 @@ div[data-testid="stVerticalBlockBorderWrapper"]:hover {
 [data-testid="column"]:nth-of-type(4) [data-testid="stMetric"]::after,
 [data-testid="stColumn"]:nth-of-type(4) [data-testid="stMetric"]::after { content:'calendar_month'; color:#F472B6; background:rgba(244,114,182,.14); box-shadow:0 0 20px -4px rgba(244,114,182,.7); }
 
-[data-testid="stMetricLabel"] p { font-size:12px !important; font-weight:700 !important; color:#94A3B8 !important; letter-spacing:.8px; }
+[data-testid="stMetricLabel"] p { font-family:'JetBrains Mono',monospace; font-size:11px !important; font-weight:700 !important; color:#94A3B8 !important; letter-spacing:1.4px; }
 [data-testid="stMetricValue"] {
-    font-size: 40px !important; font-weight: 800 !important; letter-spacing: -1.5px; margin: 10px 0 4px 0;
-    background: linear-gradient(90deg, #FFFFFF, #C4B5FD); -webkit-background-clip: text; background-clip: text;
+    font-family:'Orbitron',sans-serif; font-size: 32px !important; font-weight: 700 !important; letter-spacing: 0px; margin: 12px 0 4px 0;
+    background: linear-gradient(90deg, #FFFFFF, #67E8F9 60%, #C4B5FD); -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent; color: transparent !important;
+    filter: drop-shadow(0 0 14px rgba(34,211,238,.35));
 }
 [data-testid="stMetricDelta"] { margin-top: 10px; }
 [data-testid="stMetricDelta"] * {
-    color:#C4B5FD !important; font-size:12px !important; font-weight:600;
-    background:rgba(139,92,246,.14) !important; padding:5px 12px; border-radius:99px; display:inline-block;
+    color:#A5F3FC !important; font-size:12px !important; font-weight:600;
+    background:rgba(34,211,238,.10) !important; padding:5px 12px; border-radius:99px; display:inline-block;
+    border:1px solid rgba(34,211,238,.18);
 }
 [data-testid="stMetricDelta"] svg { display:none; }
 
 /* ══════════ JUDUL ══════════ */
 .hero-title {
-    font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1.2; margin-top: 6px;
-    background: linear-gradient(90deg, #FFFFFF 0%, #C4B5FD 45%, #22D3EE 100%); background-size: 200% 100%;
+    font-family:'Orbitron',sans-serif;
+    font-size: 27px; font-weight: 800; letter-spacing: .5px; line-height: 1.25; margin-top: 6px; text-transform: uppercase;
+    background: linear-gradient(90deg, #FFFFFF 0%, #67E8F9 40%, #C4B5FD 80%, #FFFFFF 100%); background-size: 200% 100%;
     -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
     animation: glowmove 8s linear infinite;
+    filter: drop-shadow(0 0 16px rgba(34,211,238,.35));
 }
-.hero-sub { color:#94A3B8; font-size:13px; margin-top:6px; font-weight:500; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.hero-sub { color:#94A3B8; font-size:12.5px; margin-top:8px; font-weight:500; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .chip { display:inline-flex; align-items:center; gap:6px; background:rgba(52,211,153,.12); color:#6EE7B7;
-        border:1px solid rgba(52,211,153,.3); border-radius:99px; padding:3px 10px; font-size:10.5px; font-weight:700; letter-spacing:.6px; }
-.judul-seksi { font-size:17px; font-weight:700; color:#F8FAFC; margin-bottom:2px; letter-spacing:-.3px; }
-.sub-seksi { font-size:12px; color:#94A3B8; font-weight:500; margin-bottom:10px; }
+        border:1px solid rgba(52,211,153,.3); border-radius:99px; padding:3px 10px; font-size:10.5px; font-weight:700;
+        letter-spacing:.8px; font-family:'JetBrains Mono',monospace; }
+.chip.cyan { background:rgba(34,211,238,.10); color:#67E8F9; border-color:rgba(34,211,238,.3); }
+.chip .blink { animation: blink 1.4s infinite; }
+.judul-seksi { font-family:'Orbitron',sans-serif; font-size:14px; font-weight:700; color:#F8FAFC; margin-bottom:3px;
+               letter-spacing:.8px; text-transform:uppercase; display:flex; align-items:center; gap:10px; }
+.judul-seksi::before { content:""; width:6px; height:16px; border-radius:3px; background:linear-gradient(180deg,#22D3EE,#8B5CF6);
+                       box-shadow:0 0 12px rgba(34,211,238,.7); }
+.sub-seksi { font-family:'JetBrains Mono',monospace; font-size:11px; color:#64748B; font-weight:500; margin:0 0 10px 16px; }
 
 /* ══════════ TABEL ══════════ */
-.tbl-wrap { border-radius:18px; overflow:auto; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.025); }
+.tbl-wrap { border-radius:18px; overflow:auto; border:1px solid rgba(34,211,238,.14); background:rgba(255,255,255,.025); }
 .tbl { width:100%; border-collapse:collapse; font-size:12.5px; }
-.tbl th { position:sticky; top:0; background:#0E1430; color:#94A3B8; text-transform:uppercase; font-size:10.5px;
-          letter-spacing:.7px; font-weight:700; text-align:left; padding:12px 16px; }
+.tbl th { position:sticky; top:0; background:#0A1030; color:#67E8F9; text-transform:uppercase; font-size:10.5px;
+          letter-spacing:1px; font-weight:700; text-align:left; padding:12px 16px; font-family:'JetBrains Mono',monospace;
+          border-bottom:1px solid rgba(34,211,238,.25); }
 .tbl td { padding:11px 16px; color:#E2E8F0; border-top:1px solid rgba(255,255,255,.05); font-weight:500; }
-.tbl tbody tr:hover { background:rgba(139,92,246,.09); }
+.tbl tbody tr:hover { background:rgba(34,211,238,.07); }
 .tbl td.good { background:rgba(52,211,153,.15); color:#6EE7B7; font-weight:800; }
 .tbl td.bad { color:#F87171; font-weight:700; }
 
 /* ══════════ BAR SUMBER (animasi) ══════════ */
 .src-track { background:rgba(255,255,255,.07); border-radius:8px; height:8px; overflow:hidden; }
 .src-fill { height:8px; border-radius:8px; background:linear-gradient(90deg,#8B5CF6,#22D3EE);
-            box-shadow:0 0 14px rgba(34,211,238,.55); transform-origin:left;
+            box-shadow:0 0 14px rgba(34,211,238,.6); transform-origin:left;
             animation: growX 1.2s cubic-bezier(.2,.8,.2,1) both; }
 
 /* ══════════ KONTROL ══════════ */
@@ -268,31 +334,36 @@ section.main .stButton > button, section.main .stDownloadButton > button {
 }
 [data-testid="stMain"] .stButton > button:hover, [data-testid="stMain"] .stDownloadButton > button:hover,
 section.main .stButton > button:hover, section.main .stDownloadButton > button:hover {
-    border-color:rgba(139,92,246,.7); color:#FFFFFF; box-shadow:0 0 26px -6px rgba(139,92,246,.8);
+    border-color:rgba(34,211,238,.75); color:#FFFFFF; box-shadow:0 0 26px -6px rgba(34,211,238,.85);
 }
 [data-testid="stMain"] .stButton > button[kind="primary"], [data-testid="stMain"] .stButton > button[data-testid="stBaseButton-primary"],
 section.main .stButton > button[kind="primary"] {
     background:linear-gradient(135deg,#8B5CF6,#6366F1); border:none; color:#FFFFFF;
-    box-shadow:0 12px 28px -10px rgba(139,92,246,.95);
+    box-shadow:0 12px 28px -10px rgba(139,92,246,.95), 0 0 20px -4px rgba(34,211,238,.4);
 }
 [data-baseweb="select"] > div {
-    background: rgba(255,255,255,.05) !important; border:1px solid rgba(255,255,255,.12) !important;
+    background: rgba(255,255,255,.05) !important; border:1px solid rgba(34,211,238,.2) !important;
     border-radius: 14px !important; min-height: 42px;
 }
 [data-baseweb="select"] span, [data-baseweb="select"] div, [data-baseweb="select"] input { color:#E2E8F0 !important; font-size:13px; font-weight:600; }
-[data-baseweb="select"] svg { fill:#94A3B8 !important; }
-div[data-baseweb="popover"] ul, div[data-baseweb="menu"] { background:#0E1430 !important; border-radius:14px; }
+[data-baseweb="select"] svg { fill:#67E8F9 !important; }
+div[data-baseweb="popover"] ul, div[data-baseweb="menu"] { background:#0A1030 !important; border-radius:14px; }
 li[role="option"] { color:#E2E8F0 !important; font-size:13px; }
-li[role="option"]:hover { background:rgba(139,92,246,.2) !important; }
-[data-testid="stFileUploaderDropzone"] { background:rgba(255,255,255,.03); border:1.5px dashed rgba(139,92,246,.45); border-radius:18px; }
+li[role="option"]:hover { background:rgba(34,211,238,.18) !important; }
+[data-testid="stFileUploaderDropzone"] { background:rgba(255,255,255,.03); border:1.5px dashed rgba(34,211,238,.45); border-radius:18px; }
 [data-testid="stFileUploaderDropzone"] * { color:#CBD5E1 !important; }
 [data-testid="stExpander"] { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:16px; }
 [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p { color:#E2E8F0 !important; }
 [data-testid="stAlert"] { background:rgba(255,255,255,.05) !important; border:1px solid rgba(255,255,255,.1); border-radius:16px; }
 [data-testid="stAlert"] * { color:#E2E8F0 !important; }
 [data-testid="stSlider"] *, [data-testid="stSelectSlider"] * { color:#CBD5E1 !important; }
-div[data-baseweb="slider"] div[role="slider"] { background:#8B5CF6 !important; box-shadow:0 0 14px rgba(139,92,246,.9); }
+div[data-baseweb="slider"] div[role="slider"] { background:#22D3EE !important; box-shadow:0 0 16px rgba(34,211,238,.95); }
 iframe { border:none; background:transparent; }
+
+/* scrollbar neon */
+::-webkit-scrollbar { width:8px; height:8px; }
+::-webkit-scrollbar-thumb { background:linear-gradient(180deg,#22D3EE,#8B5CF6); border-radius:8px; }
+::-webkit-scrollbar-track { background:rgba(255,255,255,.03); }
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
@@ -375,10 +446,10 @@ def render_sidebar():
                         '<div style="color:#F8FAFC;font-size:19px;font-weight:800;letter-spacing:-.5px;">'
                         'haleyora<span style="color:#FB923C;">power</span></div></div>', unsafe_allow_html=True)
         st.markdown('<div class="brand-title">Forecast Gangguan Kabel SR</div>'
-                    '<div class="brand-sub">PLN UP3 Serpong</div>', unsafe_allow_html=True)
+                    '<div class="brand-sub">&#9656; PLN UP3 SERPONG</div>', unsafe_allow_html=True)
 
         kata = st.text_input("Cari", key="cari_menu", placeholder="Cari menu...", label_visibility="collapsed")
-        st.markdown('<div class="menu-label">Menu</div>', unsafe_allow_html=True)
+        st.markdown('<div class="menu-label">// Menu</div>', unsafe_allow_html=True)
 
         tampil_menu = [m for m in MENU if kata.strip().lower() in m.lower()] if kata.strip() else MENU
         for nama in tampil_menu:
@@ -389,9 +460,10 @@ def render_sidebar():
         if not tampil_menu:
             st.caption("Menu tidak ditemukan.")
 
+        jumlah_hari_hist = f"{len(hist):,}".replace(",", ".")
         st.markdown(f'<div class="status"><div class="row"><span class="pulse"></span>'
                     f'<span class="lbl">Model aktif</span></div><div class="val">ARIMA(1,1,1)</div>'
-                    f'<div class="sub">{len(hist):,} hari data historis</div></div>'.replace(",", "."),
+                    f'<div class="sub">{jumlah_hari_hist} hari data historis</div></div>',
                     unsafe_allow_html=True)
         st.button("Muat Ulang Data", icon=(":material/refresh:" if pakai_material else "🔄"),
                   key="reload", on_click=_muat_ulang)
@@ -406,7 +478,9 @@ with kiri:
     st.markdown(
         '<div class="hero-title">Dashboard Peramalan Gangguan Kabel SR</div>'
         '<div class="hero-sub">PT. Haleyora Power Serpong &nbsp;·&nbsp; Metode ARIMA &amp; SARIMAX '
-        '<span class="chip"><span class="pulse"></span>LIVE</span></div>', unsafe_allow_html=True)
+        '<span class="chip"><span class="pulse"></span>LIVE</span>'
+        f'<span class="chip cyan"><span class="blink">●</span>SYS ONLINE · {datetime.now():%d %b %Y}</span></div>',
+        unsafe_allow_html=True)
 with k_filter:
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     opsi = ['Semua'] + list(pd.to_datetime(hist.iloc[:, 0]).dt.strftime('%b %Y').unique())
@@ -440,9 +514,9 @@ def tata(t=280):
         font=dict(color=TEXT_GRAY, size=11, family=FONT_PLOT),
         height=t, margin=dict(l=10, r=10, t=10, b=30),
         xaxis=dict(showgrid=False, tickfont=dict(size=11, color=TEXT_GRAY), showline=False, zeroline=False),
-        yaxis=dict(gridcolor='rgba(255,255,255,0.06)', tickfont=dict(size=11, color=TEXT_GRAY), zeroline=False),
+        yaxis=dict(gridcolor='rgba(34,211,238,0.07)', tickfont=dict(size=11, color=TEXT_GRAY), zeroline=False),
         legend=dict(orientation='h', yanchor='bottom', y=1.05, x=0, font=dict(size=11, color=TEXT_GRAY)),
-        hoverlabel=dict(bgcolor='#0B1020', bordercolor=VIOLET, font=dict(color='#F8FAFC', size=12))
+        hoverlabel=dict(bgcolor='#070C22', bordercolor=CYAN, font=dict(color='#F8FAFC', size=12))
     )
 
 def judul(teks, sub=""):
@@ -467,6 +541,9 @@ def tampil(fig, durasi=28, redraw=False):
 
 def anim_garis(fig, groups, n_frames=46):
     """Garis 'tergambar' bertahap. groups = urutan grup trace yang digambar bergantian."""
+    # Sumbu X dikunci bertipe tanggal. Tanpa ini, data awal yang dikosongkan membuat
+    # Plotly menebak sumbu sebagai angka (linear) sehingga grafik tidak tampil.
+    fig.update_xaxes(type='date')
     lens = [len(fig.data[g[0]].x) for g in groups]
     total = float(sum(lens)) or 1.0
     xs = [fig.data[i].x for i in range(len(fig.data))]
@@ -509,7 +586,7 @@ def anim_donat(fig, nilai, per_slice=7):
     return fig
 
 def tabel_html(df, fmt=None, tinggi=None, sorot=None):
-    """Tabel bertema gelap (menggantikan st.dataframe). sorot(kolom, nilai, kolom_series) -> kelas CSS."""
+    """Tabel bertema gelap (menggantikan st.dataframe). sorot(kolom, nilai) -> kelas CSS."""
     fmt = fmt or {}
     th = ''.join(f'<th>{c}</th>' for c in df.columns)
     baris = ''
@@ -547,6 +624,13 @@ def kpi():
 # ============================================================
 def g_tren(t=320):
     f = go.Figure()
+    # lapisan "glow" (di bawah) lalu garis utama
+    f.add_trace(go.Scatter(
+        x=hist_f[kol_tgl], y=hist_f[kol_val], showlegend=False, hoverinfo='skip',
+        line=dict(color='rgba(34,211,238,0.20)', width=11, shape='spline')))
+    f.add_trace(go.Scatter(
+        x=peramalan['Tanggal'], y=peramalan['Prediksi'], showlegend=False, hoverinfo='skip',
+        line=dict(color='rgba(251,146,60,0.20)', width=11, shape='spline')))
     f.add_trace(go.Scatter(
         x=hist_f[kol_tgl], y=hist_f[kol_val], name='Aktual',
         line=dict(color=CYAN, width=3, shape='spline'),
@@ -564,7 +648,7 @@ def g_tren(t=320):
     ymax = max(float(hist_f[kol_val].max()), float(peramalan['Prediksi'].max()))
     L['yaxis']['range'] = [0, ymax * 1.15]
     f.update_layout(**L)
-    return anim_garis(f, [[0], [1]])
+    return anim_garis(f, [[0, 2], [1, 3]])
 
 def g_penyebab(t=320):
     d = penyebab.head(5).copy()
@@ -578,13 +662,13 @@ def g_penyebab(t=320):
         labels=list(d['Penyebab']), values=nilai, hole=.68, sort=False,
         text=teks, textinfo='text', textposition='inside',
         textfont=dict(size=11, color='white', family=FONT_PLOT),
-        marker=dict(colors=warna, line=dict(color='#0B1020', width=3)),
+        marker=dict(colors=warna, line=dict(color='#050818', width=3)),
         customdata=list(d['Lengkap']),
         hovertemplate='<b>%{customdata}</b><br>%{value} kasus<extra></extra>'))
     f.update_layout(template='plotly_dark', paper_bgcolor=TRANSPARAN, plot_bgcolor=TRANSPARAN, height=t,
                     margin=dict(l=10, r=10, t=10, b=10),
                     font=dict(color=TEXT_GRAY, family=FONT_PLOT),
-                    hoverlabel=dict(bgcolor='#0B1020', bordercolor=VIOLET, font=dict(color='#F8FAFC', size=12)),
+                    hoverlabel=dict(bgcolor='#070C22', bordercolor=CYAN, font=dict(color='#F8FAFC', size=12)),
                     legend=dict(orientation='h', yanchor='top', y=-0.02, xanchor='center', x=0.5,
                                 font=dict(size=11, color=TEXT_GRAY)))
     return anim_donat(f, nilai)
@@ -726,7 +810,7 @@ def kartu_model_toggle():
     st.markdown(
         f'<div class="glass" style="border-left:3px solid {pilihan["warna"]};box-shadow:0 0 40px -14px {pilihan["warna"]};">'
         f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">'
-        f'<span style="color:{TEXT_MAIN};font-size:16px;font-weight:800;">{st.session_state.model_terpilih}</span>'
+        f'<span style="color:{TEXT_MAIN};font-family:Orbitron,sans-serif;font-size:15px;font-weight:700;letter-spacing:.6px;">{st.session_state.model_terpilih}</span>'
         f'<span style="background:rgba(255,255,255,0.08);color:{TEXT_MAIN};padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,.12);">{pilihan["nama_metrik"]}</span></div>'
         f'<div class="glass-text" style="margin:0;font-size:13px;">{pilihan["deskripsi"]}</div></div>', unsafe_allow_html=True)
 
@@ -950,11 +1034,11 @@ elif halaman == 'Akurasi Model':
     for kol, (label, nilai) in zip([v1, v2, v3], [("Ljung-Box Lag 7", "0,609"), ("Ljung-Box Lag 14", "0,713"), ("Ljung-Box Lag 21", "0,671")]):
         with kol:
             st.markdown(
-                f'<div class="glass" style="text-align:center;"><div style="color:{TEXT_GRAY};font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;">{label}</div>'
-                f'<div style="color:{HIJAU};font-size:40px;font-weight:800;margin:8px 0 4px;letter-spacing:-1px;text-shadow:0 0 24px rgba(52,211,153,.5);">{nilai}</div>'
+                f'<div class="glass" style="text-align:center;"><div style="color:{TEXT_GRAY};font-family:JetBrains Mono,monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">{label}</div>'
+                f'<div style="color:{HIJAU};font-family:Orbitron,sans-serif;font-size:36px;font-weight:700;margin:10px 0 6px;animation:flicker 3s infinite;text-shadow:0 0 24px rgba(52,211,153,.5);">{nilai}</div>'
                 f'<div style="color:{TEXT_GRAY};font-size:11px;font-weight:500;">p &gt; 0,05 · white noise</div></div>', unsafe_allow_html=True)
 
 # ============================================================
 # 16. FOOTER
 # ============================================================
-st.markdown(f'<div style="text-align:center;color:{TEXT_GRAY};font-size:11px;font-weight:500;padding:30px 0 10px;border-top:1px solid rgba(255,255,255,0.07);margin-top:30px;">Dashboard Peramalan Gangguan Kabel Sambungan Rumah &nbsp;·&nbsp; PT. Haleyora Power Serpong &nbsp;·&nbsp; ARIMA(1,1,1) &nbsp;·&nbsp; CRISP-DM Framework</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center;color:{TEXT_GRAY};font-family:JetBrains Mono,monospace;font-size:11px;font-weight:500;padding:30px 0 10px;border-top:1px solid rgba(34,211,238,0.15);margin-top:30px;letter-spacing:.5px;">Dashboard Peramalan Gangguan Kabel Sambungan Rumah &nbsp;·&nbsp; PT. Haleyora Power Serpong &nbsp;·&nbsp; ARIMA(1,1,1) &nbsp;·&nbsp; CRISP-DM Framework</div>', unsafe_allow_html=True)
