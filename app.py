@@ -582,7 +582,17 @@ def anim_garis(fig, groups, n_frames=46):
     # Sumbu X dikunci bertipe tanggal. Tanpa ini, data awal yang dikosongkan membuat
     # Plotly menebak sumbu sebagai angka (linear) sehingga grafik tidak tampil.
     fig.update_xaxes(type='date')
-    lens = [len(fig.data[g[0]].x) for g in groups]
+    # Rentang X dihitung dari data asli (sebelum dikosongkan). Tanpa ini sumbu tanggal jatuh ke
+    # rentang bawaan (tahun 2000) dan garis animasi tidak terlihat.
+    if fig.layout.xaxis.range is None:
+        try:
+            semua = pd.to_datetime(pd.concat(
+                [pd.Series(pd.to_datetime(list(t.x))) for t in fig.data if t.x is not None and len(t.x) > 0],
+                ignore_index=True))
+            fig.update_xaxes(range=[str(semua.min()), str(semua.max())])
+        except Exception:
+            pass
+    lens =[len(fig.data[g[0]].x) for g in groups]
     total = float(sum(lens)) or 1.0
     xs = [fig.data[i].x for i in range(len(fig.data))]
     ys = [fig.data[i].y for i in range(len(fig.data))]
