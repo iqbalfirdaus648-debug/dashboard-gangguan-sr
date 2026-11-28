@@ -65,10 +65,12 @@ html, body, [class*="css"] { font-family:'Plus Jakarta Sans', sans-serif; }
     background-attachment: fixed;
     color: #E2E8F0;
 }
-#MainMenu, footer, header[data-testid="stHeader"] { visibility:hidden; height:0; }
+#MainMenu, footer { visibility:hidden; }
+header[data-testid="stHeader"] { background: transparent !important; }
 [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"],
-[data-testid="stSidebarNav"], [data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarCollapsedControl"], [data-testid="collapsedControl"] { display:none !important; }
+[data-testid="stSidebarNav"] { display:none !important; }
+[data-testid="stSidebarCollapseButton"] button, [data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"] button { color:#C4B5FD !important; }
 
 .block-container { padding: 1.6rem 2.4rem 2.5rem 2.4rem !important; max-width: 1500px; }
 
