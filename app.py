@@ -126,7 +126,7 @@ section[data-testid="stSidebar"] [data-testid="stSidebarHeader"] {
     background:transparent !important;
 }
 section[data-testid="stSidebar"] [data-testid="stSidebarContent"] { overflow-x:hidden; padding-top:0 !important; }
-section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding: 2.7rem 1rem 1rem 1rem !important; }
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding: 3.2rem 1rem 1.4rem 1rem !important; }
 section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 6px; }
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
     background: none !important; border: none !important; box-shadow: none !important;
@@ -376,8 +376,8 @@ section[data-testid="stSidebar"] *::-webkit-scrollbar { display:none !important;
 section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap:4px; }
 section[data-testid="stSidebar"] .stButton > button { height:42px !important; min-height:42px !important; }
 /* pakai padding (bukan margin) supaya ikut dihitung dalam tinggi kotak markdown Streamlit */
-.brand-title { margin:0 !important; padding:14px 4px 0 4px; }
-.brand-sub { margin:0 !important; padding:4px 4px 14px 4px; }
+.brand-title { margin:0 !important; padding:24px 4px 0 4px; }
+.brand-sub { margin:0 !important; padding:6px 4px 18px 4px; }
 .menu-label { color:#7C8BA5; margin:0 !important; padding:16px 6px 12px 6px; line-height:1.3; }
 .status { margin:14px 0 8px 0; padding:12px 14px; }
 
@@ -495,10 +495,12 @@ def render_sidebar():
             st.caption("Menu tidak ditemukan.")
 
         jumlah_hari_hist = f"{len(hist):,}".replace(",", ".")
+        st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
         st.markdown(f'<div class="status"><div class="row"><span class="pulse"></span>'
                     f'<span class="lbl">Model aktif</span></div><div class="val">ARIMA(1,1,1)</div>'
                     f'<div class="sub">{jumlah_hari_hist} hari data historis</div></div>',
                     unsafe_allow_html=True)
+        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
         st.button("Muat Ulang Data", icon=(":material/refresh:" if pakai_material else "🔄"),
                   key="reload", on_click=_muat_ulang)
 
